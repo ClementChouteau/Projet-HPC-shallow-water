@@ -13,20 +13,32 @@ bool file_export;
 std::string export_path;
 
 int main(int argc, char **argv) {
-  parse_args(argc, argv);
-  printf("Command line options parsed\n");
-  
-  alloc();
-  printf("Memory allocated\n");
-  
-  gauss_init();
-  printf("State initialised\n");
+	MPI_Init(&argc, &argv);
 
-  forward();
-  printf("State computed\n");
-  
-  dealloc();
-  printf("Memory freed\n");
-  
-  return EXIT_SUCCESS;
+	MPI_Comm_size(MPI_COMM_WORLD, &p);
+	MPI_Comm_rank(MPI_COMM_WORLD, &id);
+
+	parse_args(argc, argv);
+	printf("Command line options parsed\n");
+
+	if (size_y % p != 0) {
+		printf("Height of image not divisible by number of workers\n");
+		exit(1);
+	}
+
+	alloc();
+	printf("Memory allocated\n");
+
+	gauss_init();
+	printf("State initialised\n");
+
+	forward();
+	printf("State computed\n");
+
+	dealloc();
+	printf("Memory freed\n");
+
+	MPI_Finalize();
+
+	return EXIT_SUCCESS;
 }
