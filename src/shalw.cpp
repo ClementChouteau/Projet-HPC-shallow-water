@@ -5,12 +5,14 @@
 #include <init.h>
 #include <forward.h>
 #include <export.h>
+#include <mpi.h>
 
 double *hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
 int size_x, size_y, nb_steps;
 double dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
 bool file_export;
 std::string export_path;
+int p, id;
 
 int main(int argc, char **argv) {
 	MPI_Init(&argc, &argv);

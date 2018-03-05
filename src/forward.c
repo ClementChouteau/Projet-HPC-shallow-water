@@ -2,6 +2,7 @@
 #include <math.h>
 #include <shalw.h>
 #include <export.h>
+#include <mpi.h>
 
 double hFil_forward(int t, int i, int j) {
 	//Phase d'initialisation du filtre
@@ -112,9 +113,6 @@ void forward(void) {
 		export_step(file, t);
 	}
 
-	const int top_line = (id == 0)   ? 0 : 1;
-	const int bot_line = (id == p-1) ? 0 : 1;
-
 	for (t = 1; t < nb_steps; t++) {
 		if (t == 1) {
 			svdt = dt;
@@ -150,14 +148,28 @@ void forward(void) {
 			dt = svdt;
 		}
 
-		// Echange ligne haut
-		if (top_line) {
-			//TODO
+		// Echange id-1 <=> id
+		if (id != 0) {
+		    // recevoir première ligne de UPHY
+		    MPI_Recv(&UPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
+
+		    // envoyer première ligne de VPHY
+		    MPI_Send(&VPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
+
+		    // recevoir première ligne de HPHY
+		    MPI_Recv(&HPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
 		}
 
-		// Echange ligne bas
-		if (bot_line) {
-			//TODO
+		// Echange id <=> id+1
+		if (id < p-1) {
+		    // envoyer première ligne de UPHY
+		    MPI_Send(&UPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
+
+		    // recevoir première ligne de VPHY
+		    MPI_Recv(&VPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
+
+		    // envoyer première ligne de HPHY
+		    MPI_Recv(&HPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
 		}
 	}
 
