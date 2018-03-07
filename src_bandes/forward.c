@@ -173,6 +173,8 @@ void forward(void) {
 		}
 	}
 
+	MPI_Barrier(MPI_COMM_WORLD);
+
 	if (file_export) {
 		finalize_export(file);
 	}

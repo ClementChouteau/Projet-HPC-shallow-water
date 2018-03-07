@@ -5,14 +5,7 @@
 #include <init.h>
 #include <forward.h>
 #include <export.h>
-#include <sys/time.h>   /* chronometrage */
 #include <mpi.h>
-
-double my_gettimeofday(){
-	struct timeval tmp_time;
-	gettimeofday(&tmp_time, NULL);
-	return tmp_time.tv_sec + (tmp_time.tv_usec * 1.0e-6L);
-}
 
 double *hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
 int size_x, size_y, nb_steps;
@@ -22,10 +15,6 @@ std::string export_path;
 int p, id;
 
 int main(int argc, char **argv) {
-	double debut, fin;
-
-	debut = my_gettimeofday();
-
 	MPI_Init(&argc, &argv);
 
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
@@ -51,9 +40,6 @@ int main(int argc, char **argv) {
 
 	forward();
 	printf("State computed\n");
-
-	fin = my_gettimeofday();
-	printf("Temps total de calcul : %g seconde(s) \n", fin - debut);
 
 	dealloc();
 	printf("Memory freed\n");

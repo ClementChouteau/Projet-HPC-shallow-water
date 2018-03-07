@@ -124,6 +124,7 @@ void forward(void) {
 	MPI_Request r[3] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL};
 	int received = U_RECEIVED|V_RECEIVED|H_RECEIVED;
 	for (t = 1; t < nb_steps; t++) {
+		//printf("id: %d, t: %d\n", id, t);
 		if (t == 1) {
 			svdt = dt;
 			dt = 0;
@@ -148,9 +149,9 @@ void forward(void) {
 
 			//  mettre le flag recv_flags correspondant
 			switch (indx) {
-			case 0: received |= U_RECEIVED; break;
-			case 1: received |= V_RECEIVED; break;
-			case 2: received |= H_RECEIVED; break;
+			case 0: received |= U_RECEIVED; r[0] = MPI_REQUEST_NULL; break;
+			case 1: received |= V_RECEIVED; r[1] = MPI_REQUEST_NULL; break;
+			case 2: received |= H_RECEIVED; r[2] = MPI_REQUEST_NULL; break;
 			}
 
 			// On regarde ce que l'on peut calculer
@@ -231,6 +232,8 @@ void forward(void) {
 			dt = svdt;
 		}
 	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (file_export) {
 		finalize_export(file);
