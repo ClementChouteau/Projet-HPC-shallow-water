@@ -8,9 +8,9 @@
 #define V_RECEIVED (2)
 #define H_RECEIVED (4)
 
-#define U_COMPUTED (1 >> 1)
-#define V_COMPUTED (1 >> 2)
-#define H_COMPUTED (1 >> 3)
+#define U_COMPUTED (1)
+#define V_COMPUTED (2)
+#define H_COMPUTED (4)
 
 double hFil_forward(int t, int i, int j) {
 	//Phase d'initialisation du filtre
@@ -139,10 +139,9 @@ void forward(void) {
 			received |= V_RECEIVED;
 
 		// Calculs Blocs(t) -> Blocs(T+1)
-		MPI_Request s[3];
+		MPI_Request s[3] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL};
 		int computed = 0;
 		while (computed != (U_COMPUTED|V_COMPUTED|H_COMPUTED)) {
-
 			// Attendre d'avoir une réception
 			int indx;
 			MPI_Waitany(3, r, &indx, MPI_STATUS_IGNORE);
@@ -155,9 +154,7 @@ void forward(void) {
 			}
 
 			// On regarde ce que l'on peut calculer
-			switch (received) {
-			case (V_RECEIVED|H_RECEIVED):
-				if ((computed & U_COMPUTED) == 0) {
+			if (received & (V_RECEIVED|H_RECEIVED) && (computed & U_COMPUTED) == 0) {
 					// Travail par bandes, 1 bande par processus
 					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
 					for (int i = 0; i < size_x; i++) {
@@ -176,10 +173,9 @@ void forward(void) {
 						UFIL(t, i, j) = uFil_forward(t, i, j);}}
 
 					computed |= U_COMPUTED;
-					break;
-				}
-			case (U_RECEIVED|H_RECEIVED):
-				if ((computed & V_COMPUTED) == 0) {
+			}
+
+			if (received & (U_RECEIVED|H_RECEIVED) && (computed & V_COMPUTED) == 0) {
 					// Travail par bandes, 1 bande par processus
 					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
 					for (int i = 0; i < size_x; i++) {
@@ -198,10 +194,9 @@ void forward(void) {
 						VFIL(t, i, j) = vFil_forward(t, i, j);}}
 
 					computed |= V_COMPUTED;
-					break;
-				}
-			case (U_RECEIVED|V_RECEIVED):
-				if ((computed & H_COMPUTED) == 0) {
+			}
+
+			if (received & (U_RECEIVED|V_RECEIVED) && (computed & H_COMPUTED) == 0) {
 					// Travail par bandes, 1 bande par processus
 					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
 					for (int i = 0; i < size_x; i++) {
@@ -220,8 +215,6 @@ void forward(void) {
 						HFIL(t, i, j) = hFil_forward(t, i, j);}}
 
 					computed |= H_COMPUTED;
-					break;
-				}
 			}
 		}
 
