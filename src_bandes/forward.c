@@ -148,28 +148,40 @@ void forward(void) {
 			dt = svdt;
 		}
 
+		/*
 		// Echange id-1 <=> id
 		if (id != 0) {
-			// recevoir première ligne de UPHY
-			MPI_Recv(&UPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
-
-			// envoyer première ligne de VPHY
+			MPI_Recv(&UPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
 			MPI_Send(&VPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
-
-			// recevoir première ligne de HPHY
-			MPI_Recv(&HPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&HPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
 		}
 
 		// Echange id <=> id+1
-		if (id < p-1) {
-			// envoyer première ligne de UPHY
-			MPI_Send(&UPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
-
-			// recevoir première ligne de VPHY
+		if (id != p-1) {
+			MPI_Send(&UPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
 			MPI_Recv(&VPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
+			MPI_Send(&HPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
+		}
+		*/
 
-			// envoyer première ligne de HPHY
-			MPI_Send(&HPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
+		// Echange id-1 <=> id
+		if (id != 0) {
+			MPI_Recv(&UPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&VPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&HPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
+			MPI_Send(&UPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
+			MPI_Send(&VPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
+			MPI_Send(&HPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
+		}
+
+		// Echange id <=> id+1
+		if (id != p-1) {
+			MPI_Send(&UPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
+			MPI_Send(&VPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
+			MPI_Send(&HPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
+			MPI_Recv(&UPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&VPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&HPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
 		}
 	}
 

@@ -6,17 +6,17 @@ LDFLAGS=-lboost_program_options -lm
 
 FILES=export forward init memory parse_args shalw
 OBJECTS=$(addsuffix .o, $(FILES))
-BIN=bin/shalw_seq
+BIN=bin/shalw_bandes
 
 all : $(BIN)
 
 $(BIN) : $(addprefix obj/, $(OBJECTS))
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-obj/%.o : src_seq/%.cpp
+obj/%.o : src_bandes/%.cpp
 	$(CXX) -c -o $@ $^ $(CPPFLAGS)
 
-obj/%.o : src_seq/%.c
+obj/%.o : src_bandes/%.c
 	$(CXX) -c -o $@ $^ $(CPPFLAGS)
 
 clean :
