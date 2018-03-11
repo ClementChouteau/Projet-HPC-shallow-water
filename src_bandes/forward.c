@@ -128,7 +128,6 @@ void forward(void) {
 			for (int i = 0; i < size_x; i++) {
 				// Chaque [H,U,V]FIL nécessite le [H,U,V]PHY correspondant
 				// A part cette condition, les tâches sont indépendantes
-
 				HPHY(t, i, j) = hPhy_forward(t, i, j);
 				HFIL(t, i, j) = hFil_forward(t, i, j);
 
@@ -140,48 +139,26 @@ void forward(void) {
 			}
 		}
 
+		// Echange id-1 <=> id
+		if (id != 0) {
+			MPI_Recv(&HPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&UPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
+			MPI_Send(&VPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
+		}
+
+		// Echange id <=> id+1
+		if (id != p-1) {
+			MPI_Send(&HPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
+			MPI_Send(&UPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
+			MPI_Recv(&VPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
+		}
+
 		if (file_export) {
 			export_step(file, t);
 		}
 
 		if (t == 2) {
 			dt = svdt;
-		}
-
-		/*
-		// Echange id-1 <=> id
-		if (id != 0) {
-			MPI_Recv(&UPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
-			MPI_Send(&VPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
-			MPI_Recv(&HPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
-		}
-
-		// Echange id <=> id+1
-		if (id != p-1) {
-			MPI_Send(&UPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
-			MPI_Recv(&VPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
-			MPI_Send(&HPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
-		}
-		*/
-
-		// Echange id-1 <=> id
-		if (id != 0) {
-			MPI_Recv(&UPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
-			MPI_Recv(&VPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
-			MPI_Recv(&HPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, NULL);
-			MPI_Send(&UPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
-			MPI_Send(&VPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
-			MPI_Send(&HPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD);
-		}
-
-		// Echange id <=> id+1
-		if (id != p-1) {
-			MPI_Send(&UPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
-			MPI_Send(&VPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
-			MPI_Send(&HPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD);
-			MPI_Recv(&UPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
-			MPI_Recv(&VPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
-			MPI_Recv(&HPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, NULL);
 		}
 	}
 

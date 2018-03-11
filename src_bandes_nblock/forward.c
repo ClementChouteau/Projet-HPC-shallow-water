@@ -4,6 +4,10 @@
 #include <export.h>
 #include <mpi.h>
 
+#define U_TAG (1)
+#define V_TAG (2)
+#define H_TAG (3)
+
 #define U_RECEIVED (1)
 #define V_RECEIVED (2)
 #define H_RECEIVED (4)
@@ -163,11 +167,11 @@ void forward(void) {
 
 					// envoyer ma première ligne de UPHY
 					if (id != p-1)
-						MPI_Isend(&UPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, &s[0]);
+						MPI_Isend(&UPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, U_TAG, MPI_COMM_WORLD, &s[0]);
 
 					// recevoir leur dernière ligne de UPHY
 					if (id != 0)
-						MPI_Irecv(&UPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, &r[0]);
+						MPI_Irecv(&UPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, U_TAG, MPI_COMM_WORLD, &r[0]);
 
 					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
 					for (int i = 0; i < size_x; i++) {
@@ -184,11 +188,11 @@ void forward(void) {
 
 					// envoyer ma première ligne de VPHY
 					if (id != 0)
-						MPI_Isend(&VPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, &s[1]);
+						MPI_Isend(&VPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id-1, V_TAG, MPI_COMM_WORLD, &s[1]);
 
 					// recevoir leur dernière ligne de VPHY
 					if (id != p-1)
-						MPI_Irecv(&VPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, &r[1]);
+						MPI_Irecv(&VPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id+1, V_TAG, MPI_COMM_WORLD, &r[1]);
 
 					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
 					for (int i = 0; i < size_x; i++) {
@@ -205,11 +209,11 @@ void forward(void) {
 
 					// envoyer ma première ligne de HPHY
 					if (id != p-1)
-						MPI_Isend(&HPHY(t, 0, id*(size_y/p)), size_x, MPI_DOUBLE, id+1, 0, MPI_COMM_WORLD, &s[2]);
+						MPI_Isend(&HPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, H_TAG, MPI_COMM_WORLD, &s[2]);
 
 					// recevoir leur dernière ligne de HPHY
 					if (id != 0)
-						MPI_Irecv(&HPHY(t, 0, (id+1)*(size_y/p)), size_x, MPI_DOUBLE, id-1, 0, MPI_COMM_WORLD, &r[2]);
+						MPI_Irecv(&HPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, H_TAG, MPI_COMM_WORLD, &r[2]);
 
 					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
 					for (int i = 0; i < size_x; i++) {
