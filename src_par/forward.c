@@ -2,6 +2,7 @@
 #include <math.h>
 #include <shalw.h>
 #include <export.h>
+
 #include <mpi.h>
 
 #define U_TAG (1)
@@ -228,6 +229,27 @@ void forward_async(void) {
 			}
 
 			// On regarde ce que l'on peut calculer
+			if (received & (U_RECEIVED|V_RECEIVED) && (computed & H_COMPUTED) == 0) {
+					// Travail par bandes, 1 bande par processus
+					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
+					for (int i = 0; i < size_x; i++) {
+						HPHY(t, i, j) = hPhy_forward(t, i, j);}}
+
+					// envoyer ma première ligne de HPHY
+					if (id != p-1)
+						MPI_Isend(&HPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, H_TAG, MPI_COMM_WORLD, &s[2]);
+
+					// recevoir leur dernière ligne de HPHY
+					if (id != 0)
+						MPI_Irecv(&HPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, H_TAG, MPI_COMM_WORLD, &r[2]);
+
+					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
+					for (int i = 0; i < size_x; i++) {
+						HFIL(t, i, j) = hFil_forward(t, i, j);}}
+
+					computed |= H_COMPUTED;
+			}
+
 			if (received & (V_RECEIVED|H_RECEIVED) && (computed & U_COMPUTED) == 0) {
 					// Travail par bandes, 1 bande par processus
 					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
@@ -269,33 +291,140 @@ void forward_async(void) {
 
 					computed |= V_COMPUTED;
 			}
-
-			if (received & (U_RECEIVED|V_RECEIVED) && (computed & H_COMPUTED) == 0) {
-					// Travail par bandes, 1 bande par processus
-					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
-					for (int i = 0; i < size_x; i++) {
-						HPHY(t, i, j) = hPhy_forward(t, i, j);}}
-
-					// envoyer ma première ligne de HPHY
-					if (id != p-1)
-						MPI_Isend(&HPHY(t, 0, (id+1)*(size_y/p)-1), size_x, MPI_DOUBLE, id+1, H_TAG, MPI_COMM_WORLD, &s[2]);
-
-					// recevoir leur dernière ligne de HPHY
-					if (id != 0)
-						MPI_Irecv(&HPHY(t, 0, id*(size_y/p)-1), size_x, MPI_DOUBLE, id-1, H_TAG, MPI_COMM_WORLD, &r[2]);
-
-					for (int j = id*(size_y/p); j < (id+1)*(size_y/p); j++) {
-					for (int i = 0; i < size_x; i++) {
-						HFIL(t, i, j) = hFil_forward(t, i, j);}}
-
-					computed |= H_COMPUTED;
-			}
 		}
 
 		received = 0;
 
 		// Attente fin des envois
 		MPI_Waitall(3, s, MPI_STATUSES_IGNORE);
+
+		if (file_export) {
+			export_step(file, t);
+		}
+
+		if (t == 2) {
+			dt = svdt;
+		}
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	if (file_export) {
+		finalize_export(file);
+	}
+}
+
+
+int id_from_xy(int x, int y) {
+	return y*q + x;
+}
+
+void forward_blocks_sync(void) {
+	FILE *file = NULL;
+	double svdt = 0.;
+	int t = 0;
+
+	if (file_export) {
+		file = create_file();
+		export_step(file, t);
+	}
+
+	for (t = 1; t < nb_steps; t++) {
+		if (t == 1) {
+			svdt = dt;
+			dt = 0;
+		}
+		if (t == 2){
+			dt = svdt / 2.;
+		}
+
+		// Travail par blocks, 1 block par processus
+
+		const int id_x = id % q;
+		const int id_y = id / q;
+
+		for (int j = id_y*(size_y/q); j < (id_y+1)*(size_y/q); j++) {
+
+			for (int i = id_x*(size_x/q); i < (id_x+1)*(size_x/q); i++) {
+				HPHY(t, i, j) = hPhy_forward(t, i, j);
+				HFIL(t, i, j) = hFil_forward(t, i, j);
+
+				UPHY(t, i, j) = uPhy_forward(t, i, j);
+				UFIL(t, i, j) = uFil_forward(t, i, j);
+
+				VPHY(t, i, j) = vPhy_forward(t, i, j);
+				VFIL(t, i, j) = vFil_forward(t, i, j);
+			}
+		}
+
+		// Echanges des lignes
+		if (id_y != q) {
+			MPI_Send(&HPHY(t, 0, (id_y+1)*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y+1), 0, MPI_COMM_WORLD);
+			MPI_Send(&UPHY(t, 0, (id_y+1)*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y+1), 0, MPI_COMM_WORLD);
+
+			MPI_Recv(&VPHY(t, 0, (id_y+1)*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y+1), 0, MPI_COMM_WORLD, NULL);
+		}
+		if (id_y != 0) {
+			MPI_Recv(&HPHY(t, 0, id_y*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y-1), 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&UPHY(t, 0, id_y*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y-1), 0, MPI_COMM_WORLD, NULL);
+
+			MPI_Send(&VPHY(t, 0, id_y*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y-1), 0, MPI_COMM_WORLD);
+		}
+
+		double* line;
+		// ALLOUER LIGNE
+		// ALLOUER LIGNE
+		// ALLOUER LIGNE
+
+		// Echanges des Colonnes
+		if (id_x != 0) {
+			// COPIER HPHY VERS LIGNE
+			// COPIER HPHY VERS LIGNE
+			// COPIER HPHY VERS LIGNE
+			MPI_Send(line, size_x, MPI_DOUBLE, id_from_xy(id_x-1, id_y), 0, MPI_COMM_WORLD);
+
+			// COPIER VPHY VERS LIGNE
+			// COPIER VPHY VERS LIGNE
+			// COPIER VPHY VERS LIGNE
+			MPI_Send(line, size_x, MPI_DOUBLE, id_from_xy(id_x-1, id_y), 0, MPI_COMM_WORLD);
+
+			MPI_Recv(line, size_x, MPI_DOUBLE, id_from_xy(id_x-1, id_y), 0, MPI_COMM_WORLD, NULL);
+			// COPIER LIGNE VERS UPHY
+			// COPIER LIGNE VERS UPHY
+			// COPIER LIGNE VERS UPHY
+			// COPIER LIGNE VERS UPHY
+		}
+		if (id_x != q) {
+			MPI_Recv(line, size_x, MPI_DOUBLE, id_from_xy(id_x+1, id_y), 0, MPI_COMM_WORLD, NULL);
+			// COPIER LIGNE VERS HPHY
+			// COPIER LIGNE VERS HPHY
+			// COPIER LIGNE VERS HPHY
+			// COPIER LIGNE VERS HPHY
+
+			MPI_Recv(line, size_x, MPI_DOUBLE, id_from_xy(id_x+1, id_y), 0, MPI_COMM_WORLD, NULL);
+			// COPIER LIGNE VERS VPHY
+			// COPIER LIGNE VERS VPHY
+			// COPIER LIGNE VERS VPHY
+			// COPIER LIGNE VERS VPHY
+
+			// COPIER UPHY VERS LIGNE
+			// COPIER UPHY VERS LIGNE
+			// COPIER UPHY VERS LIGNE
+			// COPIER UPHY VERS LIGNE
+			MPI_Send(line, size_x, MPI_DOUBLE, id_from_xy(id_x+1, id_y), 0, MPI_COMM_WORLD);
+		}
+
+		// Echanges des coins
+		if (id_y != 0 && id_x != 0) {
+			MPI_Recv(&UPHY(t, (id_x+1)*(size_x/q), (id_y+1)*(size_y/q)), 1, MPI_DOUBLE, id_from_xy(id_x-1, id_y-1), 0, MPI_COMM_WORLD, NULL);
+			MPI_Send(&VPHY(t, id_x*(size_x/q), id_y*(size_y/q)), 1, MPI_DOUBLE, id_from_xy(id_x-1, id_y-1), 0, MPI_COMM_WORLD);
+		}
+
+		if (id_y != q && id_x != q) {
+			MPI_Send(&UPHY(t, (id_x+1)*(size_x/q), (id_y+1)*(size_y/q)), 1, MPI_DOUBLE, id_from_xy(id_x+1, id_y+1), 0, MPI_COMM_WORLD);
+			MPI_Recv(&VPHY(t, id_x*(size_x/q), id_y*(size_y/q)), 1, MPI_DOUBLE, id_from_xy(id_x+1, id_y+1), 0, MPI_COMM_WORLD, NULL);
+		}
+
 
 		if (file_export) {
 			export_step(file, t);

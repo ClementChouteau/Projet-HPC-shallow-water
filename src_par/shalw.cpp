@@ -21,7 +21,9 @@ double dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
 bool file_export;
 std::string export_path;
 int p, id;
+int q;
 bool async;
+bool block;
 
 int main(int argc, char **argv) {
 	MPI_Init(&argc, &argv);
@@ -32,7 +34,11 @@ int main(int argc, char **argv) {
 	parse_args(argc, argv);
 	PRINT("Command line options parsed\n");
 
-	if (size_y % p != 0) {
+	if (block && (size_x % q != 0 || size_y % q != 0)) {
+		printf("Dimensions of image not compatible with number of block workers\n");
+		exit(1);
+	}
+	else if (!block && size_y % p != 0) {
 		printf("Height of image not divisible by number of workers\n");
 		exit(1);
 	}
