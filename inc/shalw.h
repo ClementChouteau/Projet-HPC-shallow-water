@@ -5,6 +5,7 @@ extern double dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
 extern bool file_export;
 extern std::string export_path;
 extern int p, id;
+extern bool async;
 
 #define HFIL(t, i, j) hFil[ (i) +			\
 				(j) * size_y +		\

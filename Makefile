@@ -6,17 +6,17 @@ LDFLAGS=-lboost_program_options -lm
 
 FILES=export forward init memory parse_args shalw
 OBJECTS=$(addsuffix .o, $(FILES))
-BIN=bin/shalw_bandes_nblock
+BIN=bin/shalw_par
 
 all : $(BIN)
 
 $(BIN) : $(addprefix obj/, $(OBJECTS))
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-obj/%.o : src_bandes_nblock/%.cpp
+obj/%.o : src_par/%.cpp
 	$(CXX) -c -o $@ $^ $(CPPFLAGS)
 
-obj/%.o : src_bandes_nblock/%.c
+obj/%.o : src_par/%.c
 	$(CXX) -c -o $@ $^ $(CPPFLAGS)
 
 clean :
@@ -28,5 +28,5 @@ test : all
 
 mrproper : clean
 	rm -f bin/shalw_seq
-	rm -f bin/shalw_bandes
-	rm -f bin/shalw_bandes_nblock
+	rm -f bin/shalw_par
+
