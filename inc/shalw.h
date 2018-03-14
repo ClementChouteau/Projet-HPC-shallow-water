@@ -7,6 +7,7 @@ extern std::string export_path;
 extern int p, id;
 extern int q;
 extern bool async;
+extern bool block;
 
 #define HFIL(t, i, j) hFil[ (i) +			\
 				(j) * size_y +		\

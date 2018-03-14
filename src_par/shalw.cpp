@@ -7,10 +7,12 @@
 #include <export.h>
 #include <mpi.h>
 
+#include <math.h>
+
 #undef DEBUG
 
 #ifdef DEBUG
-#define PRINT(X) printf(x)
+#define PRINT(X) printf(X)
 #else
 #define PRINT(X)
 #endif
@@ -30,6 +32,8 @@ int main(int argc, char **argv) {
 
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
+
+	q = sqrt(p);
 
 	parse_args(argc, argv);
 	PRINT("Command line options parsed\n");
@@ -53,10 +57,14 @@ int main(int argc, char **argv) {
 	gauss_init();
 	PRINT("State initialised\n");
 
-	if (async)
+	if (async) {
+		PRINT("Asynchonous mode\n");
 		forward_async();
-	else
+	}
+	else {
+		PRINT("Synchonous mode\n");
 		forward_sync();
+	}
 	PRINT("State computed\n");
 
 	dealloc();

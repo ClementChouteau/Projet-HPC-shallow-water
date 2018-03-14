@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include <shalw.h>
 
-#include <math.h>
-
 void alloc(void) {
 	hFil = (double *) calloc(2*size_x*size_y, sizeof(double));
 	uFil = (double *) calloc(2*size_x*size_y, sizeof(double));
@@ -22,8 +20,6 @@ void dealloc(void) {
 }
 
 void alloc_blocks(void) {
-	const int q = sqrt(p);
-
 	// allocation des blocs
 	// comportant des bords
 
@@ -45,8 +41,6 @@ void alloc_blocks(void) {
 }
 
 void dealloc_blocks(void) {
-	const int q = sqrt(p);
-
 	hFil -= size_x/q + 2 + 1;
 	uFil -= size_x/q + 2 + 1;
 	vFil -= size_x/q + 2 + 1;

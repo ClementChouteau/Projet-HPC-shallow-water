@@ -2,7 +2,7 @@ CXX=mpicxx
 
 CPPFLAGS=-Iinc -Wall -O3
 
-LDFLAGS=-lboost_program_options -lm
+LDFLAGS=-lboost_program_options -lm -O3
 
 FILES=export forward init memory parse_args shalw
 OBJECTS=$(addsuffix .o, $(FILES))

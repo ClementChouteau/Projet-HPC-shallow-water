@@ -23,7 +23,8 @@ void parse_args(int argc, char **argv) {
 			("hinit", po::value<double>()->default_value(15), "Height of the initial state")
 			("export", "Export state of hFil")
 			("export-path", po::value<std::string>()->default_value("."), "Path for the export")
-			("async", "Enable asynchronous communications");
+			("async", "Enable asynchronous communications")
+			("block", "Enable block mode");
 
 	po::variables_map vars;
 	po::store(po::command_line_parser(argc, argv).options(desc).run(), vars);
@@ -52,4 +53,5 @@ void parse_args(int argc, char **argv) {
 	export_path = vars["export-path"].as<std::string>();
 
 	async = vars.count("async") ? true : false;
+	block = vars.count("block") ? true : false;
 }
