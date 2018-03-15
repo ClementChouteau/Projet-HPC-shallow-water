@@ -329,7 +329,7 @@ void forward_blocks_sync(void) {
 		export_step(file, t);
 	}
 
-	double* line = (double*) malloc((size_y/q)*sizeof(double));
+	double* line = (double*) malloc((size_x/q)*sizeof(double));
 
 	for (t = 1; t < nb_steps; t++) {
 		if (t == 1) {
@@ -360,56 +360,56 @@ void forward_blocks_sync(void) {
 		}
 
 		// Echanges des lignes
-		if (id_y != q) {
-			MPI_Send(&HPHY(t, 0, (id_y+1)*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y+1), 0, MPI_COMM_WORLD);
-			MPI_Send(&UPHY(t, 0, (id_y+1)*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y+1), 0, MPI_COMM_WORLD);
+		if (id_y != q-1) {
+			MPI_Send(&HPHY(t, id_x*(size_x/q), (id_y+1)*(size_y/q)-1), size_x/q, MPI_DOUBLE, id_from_xy(id_x, id_y+1), 0, MPI_COMM_WORLD);
+			MPI_Send(&UPHY(t, id_x*(size_x/q), (id_y+1)*(size_y/q)-1), size_x/q, MPI_DOUBLE, id_from_xy(id_x, id_y+1), 0, MPI_COMM_WORLD);
 
-			MPI_Recv(&VPHY(t, 0, (id_y+1)*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y+1), 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&VPHY(t, id_x*(size_x/q), (id_y+1)*(size_y/q)), size_x/q, MPI_DOUBLE, id_from_xy(id_x, id_y+1), 0, MPI_COMM_WORLD, NULL);
 		}
 		if (id_y != 0) {
-			MPI_Recv(&HPHY(t, 0, id_y*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y-1), 0, MPI_COMM_WORLD, NULL);
-			MPI_Recv(&UPHY(t, 0, id_y*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y-1), 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&HPHY(t, id_x*(size_x/q), id_y*(size_y/q)-1), size_x/q, MPI_DOUBLE, id_from_xy(id_x, id_y-1), 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&UPHY(t, id_x*(size_x/q), id_y*(size_y/q)-1), size_x/q, MPI_DOUBLE, id_from_xy(id_x, id_y-1), 0, MPI_COMM_WORLD, NULL);
 
-			MPI_Send(&VPHY(t, 0, id_y*(size_y/q)-1), size_x, MPI_DOUBLE, id_from_xy(id_x, id_y-1), 0, MPI_COMM_WORLD);
+			MPI_Send(&VPHY(t, id_x*(size_x/q), id_y*(size_y/q)), size_x/q, MPI_DOUBLE, id_from_xy(id_x, id_y-1), 0, MPI_COMM_WORLD);
 		}
 
 		// Echanges des Colonnes
 		if (id_x != 0) {
-			for (int j = id_y*(size_y/q); j < (id_y+1)*(size_y/q); j++)
-				line[j - id_y*(size_y/q)] = HPHY(t, 0, j);
-			MPI_Send(line, size_x, MPI_DOUBLE, id_from_xy(id_x-1, id_y), 0, MPI_COMM_WORLD);
+			for (int j = 0; j < size_y/q; j++)
+				line[j] = HPHY(t, id_x*(size_x/q), id_y*(size_y/q)+j);
+			MPI_Send(line, size_y/q, MPI_DOUBLE, id_from_xy(id_x-1, id_y), 0, MPI_COMM_WORLD);
 
-			for (int j = id_y*(size_y/q); j < (id_y+1)*(size_y/q); j++)
-				line[j - id_y*(size_y/q)] = VPHY(t, 0, j);
-			MPI_Send(line, size_x, MPI_DOUBLE, id_from_xy(id_x-1, id_y), 0, MPI_COMM_WORLD);
+			for (int j = 0; j < size_y/q; j++)
+				line[j] = VPHY(t, id_x*(size_x/q), id_y*(size_y/q)+j);
+			MPI_Send(line, size_y/q, MPI_DOUBLE, id_from_xy(id_x-1, id_y), 0, MPI_COMM_WORLD);
 
-			MPI_Recv(line, size_x, MPI_DOUBLE, id_from_xy(id_x-1, id_y), 0, MPI_COMM_WORLD, NULL);
-			for (int j = id_y*(size_y/q); j < (id_y+1)*(size_y/q); j++)
-				UPHY(t, 0, j) = line[j - id_y*(size_y/q)];
+			MPI_Recv(line, size_y/q, MPI_DOUBLE, id_from_xy(id_x-1, id_y), 0, MPI_COMM_WORLD, NULL);
+			for (int j = 0; j < size_y/q; j++)
+				UPHY(t, id_x*(size_x/q)-1, id_y*(size_y/q)+j) = line[j];
 		}
-		if (id_x != q) {
-			MPI_Recv(line, size_x, MPI_DOUBLE, id_from_xy(id_x+1, id_y), 0, MPI_COMM_WORLD, NULL);
-			for (int j = id_y*(size_y/q); j < (id_y+1)*(size_y/q); j++)
-				HPHY(t, (id_x+1)*(size_x/q)-1, j) = line[j - id_y*(size_y/q)];
+		if (id_x != q-1) {
+			MPI_Recv(line, size_y/q, MPI_DOUBLE, id_from_xy(id_x+1, id_y), 0, MPI_COMM_WORLD, NULL);
+			for (int j = 0; j < size_y/q; j++)
+				HPHY(t, (id_x+1)*(size_x/q), id_y*(size_y/q)+j) = line[j];
 
-			MPI_Recv(line, size_x, MPI_DOUBLE, id_from_xy(id_x+1, id_y), 0, MPI_COMM_WORLD, NULL);
-			for (int j = id_y*(size_y/q); j < (id_y+1)*(size_y/q); j++)
-				VPHY(t, (id_x+1)*(size_x/q)-1, j) = line[j - id_y*(size_y/q)];
+			MPI_Recv(line, size_y/q, MPI_DOUBLE, id_from_xy(id_x+1, id_y), 0, MPI_COMM_WORLD, NULL);
+			for (int j = 0; j < size_y/q; j++)
+				VPHY(t, (id_x+1)*(size_x/q), id_y*(size_y/q)+j) = line[j];
 
-			for (int j = id_y*(size_y/q); j < (id_y+1)*(size_y/q); j++)
-				line[j - id_y*(size_y/q)] = UPHY(t, (id_x+1)*(size_x/q)-1, j);
-			MPI_Send(line, size_x, MPI_DOUBLE, id_from_xy(id_x+1, id_y), 0, MPI_COMM_WORLD);
+			for (int j = 0; j < size_y/q; j++)
+				line[j] = UPHY(t, (id_x+1)*(size_x/q)-1, id_y*(size_y/q)+j);
+			MPI_Send(line, size_y/q, MPI_DOUBLE, id_from_xy(id_x+1, id_y), 0, MPI_COMM_WORLD);
 		}
 
 		// Echanges des coins
 		if (id_y != 0 && id_x != 0) {
-			MPI_Recv(&UPHY(t, (id_x+1)*(size_x/q), (id_y+1)*(size_y/q)), 1, MPI_DOUBLE, id_from_xy(id_x-1, id_y-1), 0, MPI_COMM_WORLD, NULL);
+			MPI_Recv(&UPHY(t, id_x*(size_x/q)-1, id_y*(size_y/q))-1, 1, MPI_DOUBLE, id_from_xy(id_x-1, id_y-1), 0, MPI_COMM_WORLD, NULL);
 			MPI_Send(&VPHY(t, id_x*(size_x/q), id_y*(size_y/q)), 1, MPI_DOUBLE, id_from_xy(id_x-1, id_y-1), 0, MPI_COMM_WORLD);
 		}
 
-		if (id_y != q && id_x != q) {
-			MPI_Send(&UPHY(t, (id_x+1)*(size_x/q), (id_y+1)*(size_y/q)), 1, MPI_DOUBLE, id_from_xy(id_x+1, id_y+1), 0, MPI_COMM_WORLD);
-			MPI_Recv(&VPHY(t, id_x*(size_x/q), id_y*(size_y/q)), 1, MPI_DOUBLE, id_from_xy(id_x+1, id_y+1), 0, MPI_COMM_WORLD, NULL);
+		if (id_y != q-1 && id_x != q-1) {
+			MPI_Send(&UPHY(t, (id_x+1)*(size_x/q)-1, (id_y+1)*(size_y/q))-1, 1, MPI_DOUBLE, id_from_xy(id_x+1, id_y+1), 0, MPI_COMM_WORLD);
+			MPI_Recv(&VPHY(t, (id_x+1)*(size_x/q), (id_y+1)*(size_y/q)), 1, MPI_DOUBLE, id_from_xy(id_x+1, id_y+1), 0, MPI_COMM_WORLD, NULL);
 		}
 
 
@@ -421,6 +421,8 @@ void forward_blocks_sync(void) {
 			dt = svdt;
 		}
 	}
+
+	free(line);
 
 	MPI_Barrier(MPI_COMM_WORLD);
 

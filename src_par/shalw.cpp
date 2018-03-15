@@ -57,13 +57,16 @@ int main(int argc, char **argv) {
 	gauss_init();
 	PRINT("State initialised\n");
 
+
 	if (async) {
 		PRINT("Asynchonous mode\n");
-		forward_async();
 	}
 	else {
 		PRINT("Synchonous mode\n");
-		forward_sync();
+		if (block)
+			forward_blocks_sync();
+		else
+			forward_sync();
 	}
 	PRINT("State computed\n");
 
