@@ -19,6 +19,9 @@ void dealloc(void) {
 	free(vPhy);
 }
 
+// POUR UNE EVENTUELLE VERSION AVEC ALLOCATION MEMOIRE DES BLOCS
+// POSSIBLE ET RAISONNABLE APRES MPI I/O
+
 void alloc_blocks(void) {
 	// allocation des blocs
 	// comportant des bords

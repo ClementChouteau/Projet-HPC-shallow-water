@@ -118,7 +118,7 @@ double vPhy_forward(int t, int i, int j) {
 }
 
 void forward_sync(void) {
-	FILE *file = NULL;
+	MPI_File *file = NULL;
 	double svdt = 0.;
 	int t = 0;
 
@@ -187,7 +187,7 @@ void forward_sync(void) {
 
 
 void forward_async(void) {
-	FILE *file = NULL;
+	MPI_File *file = NULL;
 	double svdt = 0.;
 	int t = 0;
 
@@ -321,7 +321,7 @@ int id_from_xy(int x, int y) {
 }
 
 void forward_blocks_sync(void) {
-	FILE *file = NULL;
+	MPI_File *file = NULL;
 	double svdt = 0.;
 	int t = 0;
 

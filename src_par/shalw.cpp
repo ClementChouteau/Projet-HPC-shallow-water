@@ -47,6 +47,7 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
+	// ENLEVER CA POUR LE MODE I/O MPI
 	// 1 seul export fait par root
 	if (p > 1 && id != 0)
 		file_export = false;
