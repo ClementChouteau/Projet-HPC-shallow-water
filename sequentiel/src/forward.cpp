@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <math.h>
-#include <shalw.h>
-#include <export.h>
+#include "shalw.h"
+#include "export.h"
 
 double hFil_forward(int t, int i, int j) {
   //Phase d'initialisation du filtre

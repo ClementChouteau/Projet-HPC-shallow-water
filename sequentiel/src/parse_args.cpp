@@ -1,6 +1,6 @@
 #include <boost/program_options.hpp>
 #include <iostream>
-#include <shalw.h>
+#include "shalw.h"
 
 void parse_args(int argc, char **argv) {
   namespace po = boost::program_options;

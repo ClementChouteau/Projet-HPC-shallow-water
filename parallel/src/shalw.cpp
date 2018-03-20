@@ -1,11 +1,11 @@
-#include <stdlib.h>
-#include <shalw.h>
-#include <parse_args.hpp>
-#include <memory.h>
-#include <init.h>
-#include <forward.h>
-#include <export.h>
+#include "shalw.h"
+#include "export.h"
+#include "forward.h"
+#include "init.h"
+#include "memory.h"
 #include <mpi.h>
+#include "parse_args.hpp"
+#include <stdlib.h>
 
 #include <math.h>
 
@@ -17,17 +17,18 @@
 #define PRINT(X)
 #endif
 
-double *hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
-int size_x, size_y, nb_steps;
-double dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
-bool file_export;
+double *	hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
+int			size_x, size_y, nb_steps;
+double		dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
+bool		file_export;
 std::string export_path;
-int p, id;
-int q;
-bool async;
-bool block;
+int			p, id;
+int			q;
+bool		async;
+bool		block;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv)
+{
 	MPI_Init(&argc, &argv);
 
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
@@ -38,11 +39,14 @@ int main(int argc, char **argv) {
 	parse_args(argc, argv);
 	PRINT("Command line options parsed\n");
 
-	if (block && (size_x % q != 0 || size_y % q != 0)) {
-		printf("Dimensions of image not compatible with number of block workers\n");
+	if (block && (size_x % q != 0 || size_y % q != 0))
+	{
+		printf("Dimensions of image not compatible with number of block "
+			   "workers\n");
 		exit(1);
 	}
-	else if (!block && size_y % p != 0) {
+	else if (!block && size_y % p != 0)
+	{
 		printf("Height of image not divisible by number of workers\n");
 		exit(1);
 	}
@@ -59,10 +63,12 @@ int main(int argc, char **argv) {
 	PRINT("State initialised\n");
 
 
-	if (async) {
+	if (async)
+	{
 		PRINT("Asynchonous mode\n");
 	}
-	else {
+	else
+	{
 		PRINT("Synchonous mode\n");
 		if (block)
 			forward_blocks_sync();

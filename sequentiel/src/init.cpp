@@ -1,5 +1,5 @@
 #include <math.h>
-#include <shalw.h>
+#include "shalw.h"
 
 void gauss_init(void) {
   double gmx, gmy, gsx, gsy;

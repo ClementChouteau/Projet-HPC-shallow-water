@@ -1,10 +1,10 @@
 #include <stdlib.h>
-#include <shalw.h>
-#include <parse_args.hpp>
-#include <memory.h>
-#include <init.h>
-#include <forward.h>
-#include <export.h>
+#include "shalw.h"
+#include "parse_args.hpp"
+#include "memory.h"
+#include "init.h"
+#include "forward.h"
+#include "export.h"
 
 double *hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
 int size_x, size_y, nb_steps;

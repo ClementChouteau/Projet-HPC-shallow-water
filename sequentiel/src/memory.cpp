@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <shalw.h>
+#include "shalw.h"
 
 void alloc(void) {
   hFil = (double *) calloc(2*size_x*size_y, sizeof(double));
