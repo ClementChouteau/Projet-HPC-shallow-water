@@ -33,9 +33,3 @@ test2: all
 
 test3: all
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ~/
-
-clean:
-	rm -f obj/*.o
-
-mrproper: clean
-	rm -f bin/$(TARGET)
