@@ -33,3 +33,7 @@ test2: all
 
 test3: all
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ~/
+
+testSave: all
+	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ./
+	@diff ./shalw_512x512_T40.sav ./shalw_512x512_T40.sav.orig
