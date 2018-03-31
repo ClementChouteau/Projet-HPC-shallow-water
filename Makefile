@@ -3,9 +3,12 @@ VERSIONS:=sequentiel parallel
 all:
 	@for v in $(VERSIONS); do $(MAKE) -C $$v; done
 	
-clean:
-	rm -f obj/*.o
+testSave:
+	@for v in $(VERSIONS); do $(MAKE) -C $$v testSave; done
+	diff ./sequentiel/bin/shalw_512x512_T40.sav ./parallel/bin/shalw_512x512_T40.sav
 
-mrproper: clean
-	rm -f bin/shalw_par
-	rm -f bin/shalw_seq
+clean:
+	@for v in $(VERSIONS); do $(MAKE) -C $$v clean; done
+
+mrproper:
+	@for v in $(VERSIONS); do $(MAKE) -C $$v mrproper; done

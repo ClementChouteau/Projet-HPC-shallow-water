@@ -17,7 +17,7 @@ rep:
 	@if [ ! -d "obj" ]; then mkdir obj; fi
 
 bin/$(TARGET): $(OBJ)
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS) $(ARGS)
 
 exec: all
 	bin/$(TARGET) $(ARGS)
@@ -28,8 +28,11 @@ obj/%.o: src/%.cpp
 test1: all
 	bin/$(TARGET) --export --export-path $(EXPORT_PATH)
 
+testSave: all
+	bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ./bin/
+
 clean:
 	rm -f obj/*.o
 
 mrproper: clean
-	rm -f bin/$(TARGET)
+	rm -f bin/*
