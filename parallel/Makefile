@@ -39,7 +39,7 @@ testSave: all
 
 io: all
 	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ./bin/
-	../save_last.py ./bin/shalw_512x512_40.sav
+	../save_last.py bin/shalw_512x512_T40.sav
 	gimp ./bin/shalw_512x512_40.png
 
 clean:

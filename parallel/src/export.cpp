@@ -26,14 +26,14 @@ void create_file(int bs)
 
 void export_step_bands_sync(int t)
 {
-	disp = id * blocksize * sizeof(double);
+	disp = (t * p + id) * blocksize * sizeof(double);
 
 	// Same displacement is applied on file and memory
 	MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native",
 					  MPI_INFO_NULL);
 
-	MPI_File_write(fh, (void*)&HFIL(t, 0, 0), blocksize, MPI_DOUBLE,
-				   MPI_STATUS_IGNORE);
+	MPI_File_write(fh, (void*)&HFIL(t, 0, id * (size_y / p)), blocksize,
+				   MPI_DOUBLE, MPI_STATUS_IGNORE);
 }
 
 void export_step_blocks_sync(int t) {}
