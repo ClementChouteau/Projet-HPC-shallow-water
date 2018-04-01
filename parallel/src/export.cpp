@@ -1,65 +1,44 @@
-#include "shalw.h"
+#include <mpi.h>
 #include <stdio.h>
 
-FILE* create_file(void)
-{
-	FILE* f;
-	char  fname[256];
 
+#include "shalw.h"
+
+static MPI_File   fh;
+static MPI_Offset blocksize;
+static MPI_Offset disp;
+
+void create_file(int bs)
+{
+	blocksize = bs;
+
+	char fname[256];
 	sprintf(fname, "%s/shalw_%dx%d_T%d.sav", export_path.c_str(), size_x,
 			size_y, nb_steps);
 
-	f = fopen(fname, "w+b");
+	MPI_File_open(MPI_COMM_WORLD, fname, MPI_MODE_CREATE | MPI_MODE_WRONLY,
+				  MPI_INFO_NULL, &fh);
 
-	return f;
+	// Very time-consuming operation : it's a collective method
+	// MPI_File_preallocate(fh, (size_x * size_y * nb_steps) *
+	// sizeof(MPI_DOUBLE));
 }
 
-void export_step(FILE* f, int t)
+void export_step_bands_sync(int t)
 {
-	fwrite((void*)&HFIL(t, 0, 0), sizeof(double), size_x * size_y, f);
+	disp = id * blocksize * sizeof(double);
+
+	// Same displacement is applied on file and memory
+	MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native",
+					  MPI_INFO_NULL);
+
+	MPI_File_write(fh, (void*)&HFIL(t, 0, 0), blocksize, MPI_DOUBLE,
+				   MPI_STATUS_IGNORE);
 }
 
-void finalize_export(FILE* f)
+void export_step_blocks_sync(int t) {}
+
+void finalize_export(void)
 {
-	fclose(f);
+	MPI_File_close(&fh);
 }
-
-/*
-MPI_File* create_file(void)
-{
-	MPI_File* f;
-	char	  fname[256];
-
-	sprintf(fname, "%s/shalw_%dx%d_T%d.sav", export_path.c_str(), size_x,
-			size_y, nb_steps);
-
-	// ATTENTION IL Y A PLUSIEURS TYPES D'IO MPI, C'EST PEUT ETRE PAS LE BON
-
-	MPI_File_open(MPI_COMM_WORLD, "test.out", MPI_MODE_CREATE | MPI_MODE_WRONLY,
-				  MPI_INFO_NULL, &f);
-	MPI_File_preallocate(f, (size_x * size_y * nb_steps) * sizeof(MPI_DOUBLE));
-
-	return f;
-}
-
-void export_step(MPI_File* f, int t)
-{
-	const MPI_Offset offset = (t * p + id) * ((size_x * size_y) / p);
-
-	// CHANGER DES VALEURS SELON QUE L'ON SOIT EN MODE BLOC OU BANDES
-	// EN MODE BANDES ON PEUT FAIRE UN UNIQUE WRITE
-	// EN MODE BLOC ON DOIT FAIRE PLUSIEURS WRITES CAR IL Y A LES BORDS DANS LE
-	// TABLEAU
-
-	for (int j = 0; j < ; j++)
-		MPI_File_write_at(
-			f, offset + j * size_y,
-			&HFIL(t, id_x * (size_x / q), id_y * (size_y / q) + j), size_y,
-			MPI_DOUBLE, NULL);
-}
-
-void finalize_export(MPI_File* f)
-{
-	MPI_File_close(&h);
-}
-*/

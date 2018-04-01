@@ -3,9 +3,10 @@
 #include "forward.h"
 #include "init.h"
 #include "memory.h"
-#include <mpi.h>
 #include "parse_args.hpp"
+#include <mpi.h>
 #include <stdlib.h>
+
 
 #include <math.h>
 
@@ -50,11 +51,6 @@ int main(int argc, char** argv)
 		printf("Height of image not divisible by number of workers\n");
 		exit(1);
 	}
-
-	// ENLEVER CA POUR LE MODE I/O MPI
-	// 1 seul export fait par root
-	if (p > 1 && id != 0)
-		file_export = false;
 
 	alloc();
 	PRINT("Memory allocated\n");
