@@ -6,7 +6,6 @@
 
 static MPI_File   fh;
 static MPI_Offset blocksize;
-static MPI_Offset disp;
 
 void create_file(int bs)
 {
@@ -26,7 +25,7 @@ void create_file(int bs)
 
 void export_step_bands_sync(int t)
 {
-	disp = (t * p + id) * blocksize * sizeof(double);
+	MPI_Offset disp = (t * p + id) * blocksize * sizeof(double);
 
 	// Same displacement is applied on file and memory
 	MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native",
@@ -36,7 +35,26 @@ void export_step_bands_sync(int t)
 				   MPI_DOUBLE, MPI_STATUS_IGNORE);
 }
 
-void export_step_blocks_sync(int t) {}
+void export_step_blocks_sync(int t)
+{
+	MPI_Datatype filetype;
+	int			 gsizes[2] = {size_x, size_y};
+	int			 lsizes[2] = {size_x / q, size_y / q};
+	int			 psizes[2] = {q, q};
+	int			 coords[2] = {id % psizes[0], id / psizes[1]};
+	int			 starts[2] = {coords[0] * lsizes[0], coords[1] * lsizes[1]};
+
+	MPI_Type_create_subarray(2, gsizes, lsizes, starts, MPI_ORDER_C, MPI_DOUBLE,
+							 &filetype);
+	MPI_Type_commit(&filetype);
+
+	MPI_File_set_view(fh, 0, MPI_DOUBLE, filetype, "native", MPI_INFO_NULL);
+
+	MPI_File_write(fh,
+				   (void*)&HFIL(t, coords[0] * (gsizes[0] / psizes[0]),
+								coords[1] * (gsizes[1] / psizes[1])),
+				   blocksize, MPI_DOUBLE, MPI_STATUS_IGNORE);
+}
 
 void finalize_export(void)
 {

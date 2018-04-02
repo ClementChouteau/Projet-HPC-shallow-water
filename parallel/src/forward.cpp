@@ -407,7 +407,7 @@ void forward_blocks_sync(void)
 
 	if (file_export)
 	{
-		create_file(size_x * size_y / p);
+		create_file(size_x / q * size_y / q);
 		export_step_blocks_sync(t);
 	}
 
@@ -557,7 +557,7 @@ void forward_blocks_async(void)
 
 	if (file_export)
 	{
-		create_file(size_x * size_y / p);
+		create_file(size_x / q * size_y / q);
 		export_step_blocks_sync(t);
 	}
 

@@ -22,7 +22,7 @@ def saveLastStep(fname):
                                    ),))
     plt.subplots_adjust(bottom=0, top=1, left=0, right=1)
     plt.axis('off')
-    plt.savefig(name + "_" + str(M) + "x" + str(N) + "_" + str(T) + ".png")
+    plt.savefig(name + "_" + str(M) + "x" + str(N) + "_T" + str(T) + ".png")
                                    
 
 if __name__ == "__main__":

@@ -30,6 +30,7 @@ test1: all
 
 testSave: all
 	bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ./bin/
+	../save_last.py ./bin/shalw_512x512_T40.sav
 
 clean:
 	rm -f obj/*.o
