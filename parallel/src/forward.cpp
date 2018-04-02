@@ -203,7 +203,99 @@ void forward_bands_sync(void)
 	}
 }
 
+void forward_bands_async(void)
+{
+	double svdt = 0.;
+	int	t	= 0;
 
+	if (file_export)
+	{
+		create_file(size_x * size_y / p);
+		export_step_bands_sync(t);
+	}
+
+	MPI_Request r[3] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL};
+
+	MPI_Request s[3] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL};
+
+	for (t = 1; t < nb_steps; t++)
+	{
+		if (t == 1)
+		{
+			svdt = dt;
+			dt   = 0;
+		}
+		if (t == 2)
+		{
+			dt = svdt / 2.;
+		}
+
+		// Travail par bandes, 1 bande par processus
+
+		// (1) Calcul du bloc intérieur
+		for (int j = id * (size_y / p)+1; j < (id + 1)*(size_y / p)-1; j++)
+			for (int i = 0; i < size_x; i++)
+				FORWARD(t, i, j);
+
+		// (2) Attente réception des bords
+		MPI_Waitall(3, r, MPI_STATUSES_IGNORE);
+
+		// (3) Attente envoi anciens bords
+		MPI_Waitall(3, s, MPI_STATUSES_IGNORE);
+
+		// (4) Réceptions suivantes
+
+		if (id > 0) // Echange id-1 <=> id
+		{
+			MPI_Irecv(&HPHY(t, 0, id * (size_y / p) - 1), size_x, MPI_DOUBLE,
+					 id - 1, 0, MPI_COMM_WORLD, r+0);
+			MPI_Irecv(&UPHY(t, 0, id * (size_y / p) - 1), size_x, MPI_DOUBLE,
+					 id - 1, 0, MPI_COMM_WORLD, r+1);
+		}
+		if (id < p - 1) // Echange id <=> id+1
+		{
+			MPI_Irecv(&VPHY(t, 0, (id + 1) * (size_y / p)), size_x, MPI_DOUBLE,
+					 id + 1, 0, MPI_COMM_WORLD, r+2);
+		}
+
+		// (5) Calcul de mes bords
+		for (int i = 0; i < size_x; i++) {
+			FORWARD(t, i, id * (size_y / p));
+			FORWARD(t, i, (id + 1)*(size_y / p)-1);
+		}
+
+		// (6) Envoi de mes bords calculés
+		if (id > 0) // Echange id-1 <=> id
+		{
+			MPI_Isend(&VPHY(t, 0, id * (size_y / p)), size_x, MPI_DOUBLE, id - 1,
+					 0, MPI_COMM_WORLD, s+0);
+		}
+		if (id < p - 1) // Echange id <=> id+1
+		{
+			MPI_Isend(&HPHY(t, 0, (id + 1) * (size_y / p) - 1), size_x,
+					 MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD, s+1);
+			MPI_Isend(&UPHY(t, 0, (id + 1) * (size_y / p) - 1), size_x,
+					 MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD, s+2);
+		}
+
+
+
+		if (file_export)
+			export_step_bands_sync(t);
+
+		if (t == 2)
+			dt = svdt;
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	if (file_export)
+	{
+		finalize_export();
+	}
+}
+
+/*
 void forward_bands_async(void)
 {
 	double svdt = 0.;
@@ -393,6 +485,7 @@ void forward_bands_async(void)
 		finalize_export();
 	}
 }
+*/
 
 
 int id_from_xy(int x, int y)
