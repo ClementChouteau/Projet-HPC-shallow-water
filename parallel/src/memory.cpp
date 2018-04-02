@@ -1,70 +1,32 @@
 #include "shalw.h"
 #include <stdlib.h>
 
+int off = 0;
+
 void alloc(void)
 {
-	hFil = (double*)calloc(2 * size_x * size_y, sizeof(double));
-	uFil = (double*)calloc(2 * size_x * size_y, sizeof(double));
-	vFil = (double*)calloc(2 * size_x * size_y, sizeof(double));
-	hPhy = (double*)calloc(2 * size_x * size_y, sizeof(double));
-	uPhy = (double*)calloc(2 * size_x * size_y, sizeof(double));
-	vPhy = (double*)calloc(2 * size_x * size_y, sizeof(double));
+	if (block) {
+		buffer_size = size_x * size_y;
+	}
+	else {
+		off = (1 - id*size_y/p)*size_x;
+		buffer_size = size_x * (size_y/p + 2);
+	}
+
+	hFil = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
+	uFil = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
+	vFil = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
+	hPhy = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
+	uPhy = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
+	vPhy = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
 }
 
 void dealloc(void)
 {
-	free(hFil);
-	free(uFil);
-	free(vFil);
-	free(hPhy);
-	free(uPhy);
-	free(vPhy);
-}
-
-// POUR UNE EVENTUELLE VERSION AVEC ALLOCATION MEMOIRE DES BLOCS
-// POSSIBLE ET RAISONNABLE APRES MPI I/O
-
-void alloc_blocks(void)
-{
-	// allocation des blocs
-	// comportant des bords
-
-	hFil = (double*)calloc(2 * (size_x / q + 2) * (size_y / q + 2),
-						   sizeof(double));
-	uFil = (double*)calloc(2 * (size_x / q + 2) * (size_y / q + 2),
-						   sizeof(double));
-	vFil = (double*)calloc(2 * (size_x / q + 2) * (size_y / q + 2),
-						   sizeof(double));
-	hPhy = (double*)calloc(2 * (size_x / q + 2) * (size_y / q + 2),
-						   sizeof(double));
-	uPhy = (double*)calloc(2 * (size_x / q + 2) * (size_y / q + 2),
-						   sizeof(double));
-	vPhy = (double*)calloc(2 * (size_x / q + 2) * (size_y / q + 2),
-						   sizeof(double));
-
-	// On d�cale pour permettre d'acc�der aux bords
-	// https://stackoverflow.com/questions/3473675/are-negative-array-indexes-allowed-in-c
-	hFil += size_x / q + 2 + 1;
-	uFil += size_x / q + 2 + 1;
-	vFil += size_x / q + 2 + 1;
-	hPhy += size_x / q + 2 + 1;
-	uPhy += size_x / q + 2 + 1;
-	vPhy += size_x / q + 2 + 1;
-}
-
-void dealloc_blocks(void)
-{
-	hFil -= size_x / q + 2 + 1;
-	uFil -= size_x / q + 2 + 1;
-	vFil -= size_x / q + 2 + 1;
-	hPhy -= size_x / q + 2 + 1;
-	uPhy -= size_x / q + 2 + 1;
-	vPhy -= size_x / q + 2 + 1;
-
-	free(hFil);
-	free(uFil);
-	free(vFil);
-	free(hPhy);
-	free(uPhy);
-	free(vPhy);
+	free(hFil - off);
+	free(uFil - off);
+	free(vFil - off);
+	free(hPhy - off);
+	free(uPhy - off);
+	free(vPhy - off);
 }

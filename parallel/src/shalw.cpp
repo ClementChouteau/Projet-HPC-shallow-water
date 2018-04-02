@@ -10,7 +10,7 @@
 
 #include <math.h>
 
-#undef DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #define PRINT(X) printf(X)
@@ -27,6 +27,7 @@ int			p, id;
 int			q;
 bool		async;
 bool		block;
+int			buffer_size;
 
 int main(int argc, char** argv)
 {

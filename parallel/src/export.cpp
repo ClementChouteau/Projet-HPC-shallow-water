@@ -17,10 +17,6 @@ void create_file(int bs)
 
 	MPI_File_open(MPI_COMM_WORLD, fname, MPI_MODE_CREATE | MPI_MODE_WRONLY,
 				  MPI_INFO_NULL, &fh);
-
-	// Very time-consuming operation : it's a collective method
-	// MPI_File_preallocate(fh, (size_x * size_y * nb_steps) *
-	// sizeof(MPI_DOUBLE));
 }
 
 void export_step_bands_sync(int t)
