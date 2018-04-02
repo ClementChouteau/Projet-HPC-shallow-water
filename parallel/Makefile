@@ -3,7 +3,7 @@ OBJ:=$(addprefix obj/, $(SRC:.cpp=.o))
 SRC:=$(addprefix src/, $(SRC))
 INCLUDE:=include
 TARGET:=shalw
-ARGS:=
+ARGS:=--block --async
 NODES:=2
 HOSTFILE:=../hostfile
 
@@ -35,11 +35,11 @@ test3: all
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ~/
 
 testSave: all
-	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 --block --export --export-path ./bin/
+	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 $(ARGS) --export --export-path ./bin/
 	../save_last.py ./bin/shalw_512x512_T40.sav
 
 io: all
-	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 --block --export --export-path ./bin/
+	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 $(ARGS) --export --export-path ./bin/
 	../save_last.py bin/shalw_512x512_T40.sav
 	gimp ./bin/shalw_512x512_T40.png
 
