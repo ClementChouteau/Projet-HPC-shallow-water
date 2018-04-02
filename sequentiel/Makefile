@@ -28,6 +28,9 @@ obj/%.o: src/%.cpp
 test1: all
 	bin/$(TARGET) --export --export-path $(EXPORT_PATH)
 
+test2: all
+	$(EX) $(EXFLAGS) bin/$(TARGET) -x 8192 -y 8192 -t 20
+
 testSave: all
 	bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ./bin/
 	../save_last.py ./bin/shalw_512x512_T40.sav
@@ -37,3 +40,5 @@ clean:
 
 mrproper: clean
 	rm -f bin/*
+
+.PHONY: rep exec test1 test2 testSave clean mrproper
