@@ -42,18 +42,19 @@ void export_step_bands(int t, int async)
 
 void export_step_blocks(int t, int async)
 {
-	MPI_Datatype filetype;
 	int			 gsizes[2] = {size_x, size_y};
 	int			 lsizes[2] = {size_x / q, size_y / q};
 	int			 psizes[2] = {q, q};
 	int			 coords[2] = {id % psizes[0], id / psizes[1]};
 	int			 starts[2] = {coords[0] * lsizes[0], coords[1] * lsizes[1]};
 
+	MPI_Datatype filetype;
 	MPI_Type_create_subarray(2, gsizes, lsizes, starts, MPI_ORDER_C, MPI_DOUBLE,
 							 &filetype);
 	MPI_Type_commit(&filetype);
 
-	MPI_File_set_view(fh, 0, MPI_DOUBLE, filetype, "native", MPI_INFO_NULL);
+	MPI_Offset disp = (t * p + id) * blocksize * sizeof(double);
+	MPI_File_set_view(fh, disp, MPI_DOUBLE, filetype, "native", MPI_INFO_NULL);
 
 	if (request)
 		MPI_Wait(&request, NULL);

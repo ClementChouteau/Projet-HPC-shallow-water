@@ -10,7 +10,7 @@
 
 #include <math.h>
 
-#define DEBUG
+#undef DEBUG
 
 #ifdef DEBUG
 #define PRINT(X) printf(X)
