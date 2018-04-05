@@ -39,6 +39,8 @@ int main(int argc, char** argv)
 	q = sqrt(p);
 
 	parse_args(argc, argv);
+	if (block && id == 0)
+		printf("---- BLOCK MODE ---- \n");
 	PRINT("Command line options parsed\n");
 
 	if (block && (size_x % q != 0 || size_y % q != 0))
