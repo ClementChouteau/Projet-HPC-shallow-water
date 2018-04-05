@@ -22,16 +22,16 @@ rep:
 bin/$(TARGET): $(OBJ)
 	$(CXX) -o $@ $^ $(LDFLAGS) $(ARGS)
 
-exec: all
+exec: rep bin/$(TARGET)
 	bin/$(TARGET) $(ARGS)
 
 obj/%.o: src/%.cpp
 	$(CXX) -c -o $@ $^ $(CXXFLAGS)
 
-test1: all
+test1: rep bin/$(TARGET)
 	bin/$(TARGET) --export --export-path $(EXPORT_PATH)
 
-test2: all
+test2: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 8192 -y 8192 -t 20
 
 testSave: all
