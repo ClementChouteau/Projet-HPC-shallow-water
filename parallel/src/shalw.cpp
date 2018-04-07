@@ -29,7 +29,8 @@ int main(int argc, char** argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
 
 	parse_args(argc, argv);
-	printf("Command line options parsed\n");
+	if (id == 0)
+		printf("Command line options parsed\n");
 
 	if (block)
 	{
@@ -63,40 +64,42 @@ int main(int argc, char** argv)
 	}
 	// Theses variables doesn't take into account the extra columns / lines
 	// needed for calculations.
-	printf("id = %d, id_x = %d, id_y = %d\n", id, id_x, id_y);
-	printf("size_block_x = %d, size_block_y = %d, size_block = %d\n",
-		   size_block_x, size_block_y, size_block);
-	printf("start_block_x = %d, start_block_y = %d\n", start_block_x,
-		   start_block_y);
-	printf("end_block_x = %d, end_block_y = %d\n", end_block_x, end_block_y);
 
 	if (block && (size_x % p_x != 0 || size_y % p_y != 0))
 	{
-		printf("Dimensions of image not compatible with number of block "
-			   "workers\n");
+		if (id == 0)
+			printf("Dimensions of image not compatible with number of block "
+				   "workers\n");
 		exit(1);
 	}
 	else if (!block && size_y % p != 0)
 	{
-		printf("Height of image not divisible by number of workers\n");
+		if (id == 0)
+			printf("Height of image not divisible by number of workers\n");
 		exit(1);
 	}
 
 	alloc();
-	printf("Memory allocated\n");
+	if (id == 0)
+		printf("Memory allocated\n");
 
 	gauss_init();
-	printf("State initialised\n");
 
-	printf("%s mode\n", (block) ? "Blocks" : "Bands");
-	printf("%s mode\n", (async) ? "Asynchonous" : "Synchronus");
+	if (id == 0)
+	{
+		printf("State initialised\n");
+		printf("%s mode\n", (block) ? "Blocks" : "Bands");
+		printf("%s mode\n", (async) ? "Asynchonous" : "Synchronus");
+	}
 
 	forward();
 
-	printf("State computed\n");
+	if (id == 0)
+		printf("State computed\n");
 
 	dealloc();
-	printf("Memory freed\n");
+	if (id == 0)
+		printf("Memory freed\n");
 
 	MPI_Finalize();
 

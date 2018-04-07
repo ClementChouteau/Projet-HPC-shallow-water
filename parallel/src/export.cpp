@@ -12,9 +12,9 @@ void create_file(void)
 {
 	request = 0;
 
-// 	char fname[256];
-// 	sprintf(fname, "%s/shalw_%dx%d_T%d.sav", export_path.c_str(), size_x,
-// 			size_y, nb_steps);
+	char fname[256];
+	sprintf(fname, "%s/shalw_%dx%d_T%d.sav", export_path.c_str(), size_x,
+			size_y, nb_steps);
 
 	MPI_File_open(MPI_COMM_WORLD, fname, MPI_MODE_CREATE | MPI_MODE_WRONLY,
 				  MPI_INFO_NULL, &fh);
@@ -79,23 +79,9 @@ void export_step(int t)
 	}
 }
 
-void export_step_blocks(int t, int async)
-{
-	if (id != 0)
-		return;
-	fwrite((void*)&HFIL(t, 0, 0), sizeof(double), size_x * size_y, f);
-}
-
-void export_step_blocks(int t, int async)
-{
-	if (id != 0)
-		return;
-	fwrite((void*)&HFIL(t, 0, 0), sizeof(double), size_x * size_y, f);
-}
-
 void finalize_export(void)
 {
-	if (id != 0)
-		return;
-	fclose(f);
+	if (request)
+		MPI_Wait(&request, NULL);
+	MPI_File_close(&fh);
 }
