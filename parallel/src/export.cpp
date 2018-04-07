@@ -86,6 +86,13 @@ void export_step_blocks(int t, int async)
 	fwrite((void*)&HFIL(t, 0, 0), sizeof(double), size_x * size_y, f);
 }
 
+void export_step_blocks(int t, int async)
+{
+	if (id != 0)
+		return;
+	fwrite((void*)&HFIL(t, 0, 0), sizeof(double), size_x * size_y, f);
+}
+
 void finalize_export(void)
 {
 	if (id != 0)
