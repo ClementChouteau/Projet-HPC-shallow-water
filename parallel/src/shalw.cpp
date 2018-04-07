@@ -6,7 +6,7 @@
 #include "parse_args.hpp"
 #include <mpi.h>
 #include <stdlib.h>
-
+#include <stdio.h>
 
 #include <math.h>
 

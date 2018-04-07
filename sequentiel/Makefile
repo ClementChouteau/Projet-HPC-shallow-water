@@ -10,7 +10,7 @@ T_TEST:=40
 TEST_NAME:=shalw_$(SIZE_TEST)x$(SIZE_TEST)_T$(T_TEST)
 
 CXX=mpicxx
-CXXFLAGS=-Iinc -Wall -O3 -I $(INCLUDE)
+CXXFLAGS=-Wall -Wextra -Werror -O3 -I $(INCLUDE)
 LDFLAGS=-lboost_program_options -lm -O3
 
 all: rep bin/$(TARGET)

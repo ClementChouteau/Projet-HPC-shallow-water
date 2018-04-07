@@ -1,6 +1,6 @@
 VERSIONS:=sequentiel parallel
-NODES:=4
-ROOM:=
+NODES:=16
+ROOM:=403
 TIME:=time -f "%e %C" -ao times.csv
 
 all: sequentiel parallel
