@@ -5,6 +5,9 @@ INCLUDE:=include
 TARGET=shalw
 ARGS=
 EXPORT_PATH=/tmp
+SIZE_TEST:=512
+T_TEST:=40
+TEST_NAME:=shalw_$(SIZE_TEST)x$(SIZE_TEST)_T$(T_TEST)
 
 CXX=mpicxx
 CXXFLAGS=-Iinc -Wall -O3 -I $(INCLUDE)
@@ -32,8 +35,8 @@ test2: all
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 8192 -y 8192 -t 20
 
 testSave: all
-	bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ./bin/
-	../save_last.py ./bin/shalw_512x512_T40.sav
+	bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) --export --export-path ./bin/
+	../save_last.py ./bin/$(TEST_NAME).sav
 
 clean:
 	rm -f obj/*.o

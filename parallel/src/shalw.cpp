@@ -53,8 +53,8 @@ int main(int argc, char** argv)
 
 	if (block)
 	{
-		end_block_x = (id_x + 1) % p_x * size_block_x;
-		end_block_y = (id_y + 1) / p_y * size_block_y;
+		end_block_x = (id_x + 1) % (p_x + 1) * size_block_x;
+		end_block_y = (id_y + 1) % (p_y + 1) * size_block_y;
 	}
 	else // bands
 	{

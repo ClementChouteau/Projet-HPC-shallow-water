@@ -7,6 +7,9 @@ ARGS:=
 MODE:=
 NODES:=2
 HOSTFILE:=../hostfile
+SIZE_TEST:=512
+T_TEST:=40
+TEST_NAME:=shalw_$(SIZE_TEST)x$(SIZE_TEST)_T$(T_TEST)
 
 CXX=mpicxx
 CXXFLAGS=-Wall -Werror -Wextra -O3 -I $(INCLUDE)
@@ -36,16 +39,16 @@ test3: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ~/
 
 testSave: rep bin/$(TARGET)
-	-rm ./bin/shalw_512x512_T40.sav	
-	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 $(MODE) --export --export-path ./bin/
-	../save_last.py ./bin/shalw_512x512_T40.sav
+	-rm ./bin/TEST_NAME.sav	
+	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) $(MODE) --export --export-path ./bin/
+	../save_last.py ./bin/TEST_NAME.sav
 
 io: rep bin/$(TARGET)
-	-rm ./bin/shalw_512x512_T40.png
-	-rm ./bin/shalw_512x512_T40.sav
-	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 $(MODE) --export --export-path ./bin/
-	../save_last.py bin/shalw_512x512_T40.sav
-	gimp ./bin/shalw_512x512_T40.png
+	-rm ./bin/$(TEST_NAME).png
+	-rm ./bin/$(TEST_NAME).sav
+	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) $(MODE) --export --export-path ./bin/
+	../save_last.py bin/$(TEST_NAME).sav
+	gimp ./bin/$(TEST_NAME).png
 
 clean:
 	rm -f obj/*.o

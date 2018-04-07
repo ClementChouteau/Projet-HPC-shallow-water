@@ -6,7 +6,7 @@
 
 static MPI_File		fh;
 static MPI_Request  request;
-static MPI_Datatype filetype;
+static MPI_Datatype filetype, memtype;
 
 void create_file(void)
 {
@@ -21,10 +21,22 @@ void create_file(void)
 
 	if (block)
 	{
-		int gsizes[2] = {size_x, size_y};
-		int lsizes[2] = {size_block_x, size_block_y};
-		int starts[2] = {start_block_x, start_block_y};
+		int gsizes[2] = {size_y, size_x};
+		int lsizes[2] = {size_block_y, size_block_x};
+		int starts[2] = {start_block_y, start_block_x};
 
+		// parce qu'on a intégré les bords dans le buffer mémoire, on ne peut
+		// pas simplement considérer un sous tableau. La mémoire n'est pas
+		// contigue de la même façon que le fichier. On créer donc un sous type
+		// pour la mémoire : des lignes de size_block_x espacées de size_block_x
+		// + 2 (bords)
+		MPI_Datatype line;
+		MPI_Type_contiguous(size_block_x, MPI_DOUBLE, &line);
+		MPI_Type_create_resized(line, 0, (size_block_x + 2) * sizeof(double),
+								&memtype);
+		MPI_Type_commit(&memtype);
+
+		// sous tableau pour écrire dans le fichier
 		MPI_Type_create_subarray(2, gsizes, lsizes, starts, MPI_ORDER_C,
 								 MPI_DOUBLE, &filetype);
 		MPI_Type_commit(&filetype);
@@ -35,25 +47,35 @@ void create_file(void)
 
 void export_step(int t)
 {
-	if (!block) // bands
+	if (block)
+	{
+		if (async)
+		{
+			if (request)
+				MPI_Wait(&request, NULL);
+			MPI_File_iwrite(fh, (void*)&HFIL(t, 1, 1), size_block_y, memtype,
+							&request);
+		}
+		else // sync
+			MPI_File_write(fh, (void*)&HFIL(t, 1, 1), size_block_y, memtype,
+						   MPI_STATUS_IGNORE);
+	}
+	else // bands
 	{
 		MPI_Offset disp =
 			(t * size + start_block_y * size_block_x) * sizeof(double);
 		MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native",
 						  MPI_INFO_NULL);
-	}
-
-	if (async)
-	{
-		if (request)
-			MPI_Wait(&request, NULL);
-		MPI_File_iwrite(fh, (void*)&HFIL(t, (block), 1), size_block, MPI_DOUBLE,
-						&request);
-	}
-	else // sync
-	{
-		MPI_File_write(fh, (void*)&HFIL(t, (block), 1), size_block, MPI_DOUBLE,
-					   MPI_STATUS_IGNORE);
+		if (async)
+		{
+			if (request)
+				MPI_Wait(&request, NULL);
+			MPI_File_iwrite(fh, (void*)&HFIL(t, 0, 1), size_block, MPI_DOUBLE,
+							&request);
+		}
+		else // sync
+			MPI_File_write(fh, (void*)&HFIL(t, 0, 1), size_block, MPI_DOUBLE,
+						   MPI_STATUS_IGNORE);
 	}
 }
 

@@ -12,9 +12,15 @@ extern bool		   block;
 extern int		   buffer_size;
 
 // i:column, j:line
-#define HFIL(t, i, j) hFil[(i) + (j)*size_x + ((t) % 2) * buffer_size]
-#define UFIL(t, i, j) uFil[(i) + (j)*size_x + ((t) % 2) * buffer_size]
-#define VFIL(t, i, j) vFil[(i) + (j)*size_x + ((t) % 2) * buffer_size]
-#define HPHY(t, i, j) hPhy[(i) + (j)*size_x + ((t) % 2) * buffer_size]
-#define UPHY(t, i, j) uPhy[(i) + (j)*size_x + ((t) % 2) * buffer_size]
-#define VPHY(t, i, j) vPhy[(i) + (j)*size_x + ((t) % 2) * buffer_size]
+#define HFIL(t, i, j) \
+	hFil[(i) + (j) * (size_block_x + (block)*2) + ((t) % 2) * buffer_size]
+#define UFIL(t, i, j) \
+	uFil[(i) + (j) * (size_block_x + (block)*2) + ((t) % 2) * buffer_size]
+#define VFIL(t, i, j) \
+	vFil[(i) + (j) * (size_block_x + (block)*2) + ((t) % 2) * buffer_size]
+#define HPHY(t, i, j) \
+	hPhy[(i) + (j) * (size_block_x + (block)*2) + ((t) % 2) * buffer_size]
+#define UPHY(t, i, j) \
+	uPhy[(i) + (j) * (size_block_x + (block)*2) + ((t) % 2) * buffer_size]
+#define VPHY(t, i, j) \
+	vPhy[(i) + (j) * (size_block_x + (block)*2) + ((t) % 2) * buffer_size]

@@ -19,10 +19,14 @@ void gauss_init(void)
 		end_x += 1;   // one extra column on right
 	}
 
+	printf("id %d init from (%d, %d) to (%d, %d)\n", id, start_x, start_y,
+		   end_x, end_y);
 	for (int x = start_x; x < end_x; x++)
 	{
 		for (int y = start_y; y < end_y; y++)
 		{
+			if (x < 0 || y < 0 || x > size_x || y > size_y)
+				continue;
 			HFIL(0, x - start_x, y - start_y) =
 				height * (exp(-pow((x * dx - gmx) / gsx, 2) / 2.)) *
 				(exp(-pow((y * dy - gmy) / gsy, 2) / 2.));

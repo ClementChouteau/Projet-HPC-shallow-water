@@ -125,11 +125,11 @@ void FORWARD(int t, int i, int j)
 	VFIL(t, i, j) = vFil_forward(t, i, j);
 }
 
-// Cette fonction est longue et concentre les versions bandes/blocks sync/async
-// pour factoriser le code et bien comprendre ce que ces modes impliquent sur
-// une version standard. Ne pas hésiter à masquer des boucles ou des
-// branchements dans un éditeur de code pour avoir un aperçu global de la
-// fonction.
+// Cette fonction est longue et concentre les versions bandes/blocks
+// sync/async pour factoriser le code et bien comprendre ce que ces modes
+// impliquent sur une version standard. Ne pas hésiter à masquer des boucles
+// ou des branchements dans un éditeur de code pour avoir un aperçu global
+// de la fonction.
 void forward(void)
 {
 	double svdt = 0.;
@@ -137,7 +137,7 @@ void forward(void)
 
 	// Special type MPI to exchange array columns
 	MPI_Datatype column;
-	MPI_Type_vector(size_block_y, 1, size_block_x, MPI_DOUBLE, &column);
+	MPI_Type_vector(size_block_y, 1, size_block_x + 2, MPI_DOUBLE, &column);
 	MPI_Type_commit(&column);
 
 	// Requests for async mode
@@ -180,63 +180,63 @@ void forward(void)
 					if (id_x > 0) // not first column blocks process
 					{
 						// Send first column HPHY to id_x - 1
-						MPI_Isend(&HPHY(t - 1, 1, 0), 1, column,
+						MPI_Isend(&HPHY(t - 1, 1, 1), 1, column,
 								  ID(id_x - 1, id_y), 0, MPI_COMM_WORLD, s);
 
-						// Send first column VPHY to id_x - 1
-						MPI_Isend(&VPHY(t - 1, 1, 0), 1, column,
-								  ID(id_x - 1, id_y), 0, MPI_COMM_WORLD, s + 1);
-
 						// Receive first column UPHY from id_x - 1
-						MPI_Irecv(&UPHY(t - 1, 0, 0), 1, column,
+						MPI_Irecv(&UPHY(t - 1, 0, 1), 1, column,
 								  ID(id_x - 1, id_y), 0, MPI_COMM_WORLD, r);
+
+						// Send first column VPHY to id_x - 1
+						MPI_Isend(&VPHY(t - 1, 1, 1), 1, column,
+								  ID(id_x - 1, id_y), 0, MPI_COMM_WORLD, s + 1);
 					}
 					if (id_x < p_x - 1) // not last column blocks process
 					{
 						// Receive last column HPHY from id_x + 1
-						MPI_Irecv(&HPHY(t - 1, size_block_x, 0), 1, column,
+						MPI_Irecv(&HPHY(t - 1, size_block_x + 1, 1), 1, column,
 								  ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, r + 1);
 
-						// Receive last column VPHY from id_x + 1
-						MPI_Irecv(&VPHY(t - 1, size_block_x, 0), 1, column,
-								  ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, r + 2);
-
 						// Send last column UPHY to id_x + 1
-						MPI_Isend(&UPHY(t - 1, size_block_x - 1, 0), 1, column,
+						MPI_Isend(&UPHY(t - 1, size_block_x, 1), 1, column,
 								  ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, s + 2);
+
+						// Receive last column VPHY from id_x + 1
+						MPI_Irecv(&VPHY(t - 1, size_block_x + 1, 1), 1, column,
+								  ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, r + 2);
 					}
 
 					// Echanges des lignes
 					if (id_y > 0) // not first line blocks process
 					{
 						// Receive first line HPHY from id_y - 1
-						MPI_Irecv(&HPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+						MPI_Irecv(&HPHY(t - 1, 1, 0), size_block_x, MPI_DOUBLE,
 								  ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, r + 3);
 
 						// Receive first line UPHY from id_y - 1
-						MPI_Irecv(&UPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+						MPI_Irecv(&UPHY(t - 1, 1, 0), size_block_x, MPI_DOUBLE,
 								  ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, r + 4);
 
 						// Send first line VPHY to id_y - 1
-						MPI_Isend(&VPHY(t - 1, 0, 1), size_block_x, MPI_DOUBLE,
+						MPI_Isend(&VPHY(t - 1, 1, 1), size_block_x, MPI_DOUBLE,
 								  ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, s + 3);
 					}
 					if (id_y < p_y - 1) // not last line blocks process
 					{
 						// Send last line HPHY to id_y + 1
-						MPI_Isend(&HPHY(t - 1, 0, size_block_y - 1),
-								  size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
-								  0, MPI_COMM_WORLD, s + 4);
+						MPI_Isend(&HPHY(t - 1, 1, size_block_y), size_block_x,
+								  MPI_DOUBLE, ID(id_x, id_y + 1), 0,
+								  MPI_COMM_WORLD, s + 4);
 
 						// Send last line UPHY to id_y + 1
-						MPI_Isend(&UPHY(t - 1, 0, size_block_y - 1),
-								  size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
-								  0, MPI_COMM_WORLD, s + 5);
+						MPI_Isend(&UPHY(t - 1, 1, size_block_y), size_block_x,
+								  MPI_DOUBLE, ID(id_x, id_y + 1), 0,
+								  MPI_COMM_WORLD, s + 5);
 
 						// Receive last line VPHY from id_y + 1
-						MPI_Irecv(&VPHY(t - 1, 0, size_block_y), size_block_x,
-								  MPI_DOUBLE, ID(id_x, id_y + 1), 0,
-								  MPI_COMM_WORLD, r + 5);
+						MPI_Irecv(&VPHY(t - 1, 1, size_block_y + 1),
+								  size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
+								  0, MPI_COMM_WORLD, r + 5);
 					}
 
 					// Echanges des coins
@@ -260,17 +260,17 @@ void forward(void)
 					{
 						// Send last bottom right UPHY value to (id_x + 1, id_y
 						// + 1)
-						MPI_Isend(
-							&UPHY(t - 1, size_block_x - 1, size_block_y - 1), 1,
-							MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
-							MPI_COMM_WORLD, s + 7);
+						MPI_Isend(&UPHY(t - 1, size_block_x, size_block_y), 1,
+								  MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
+								  MPI_COMM_WORLD, s + 7);
 
 						// Receive last bottom right UPHY value from (id_x + 1,
 						// id_y
 						// + 1)
-						MPI_Irecv(&VPHY(t - 1, size_block_x, size_block_y), 1,
-								  MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
-								  MPI_COMM_WORLD, r + 7);
+						MPI_Irecv(
+							&VPHY(t - 1, size_block_x + 1, size_block_y + 1), 1,
+							MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
+							MPI_COMM_WORLD, r + 7);
 					}
 				}
 				else // bands
@@ -306,63 +306,63 @@ void forward(void)
 					if (id_x > 0) // not first column blocks process
 					{
 						// Send first column HPHY to id_x - 1
-						MPI_Send(&HPHY(t - 1, 1, 0), 1, column,
-								 ID(id_x - 1, id_y), 0, MPI_COMM_WORLD);
-
-						// Send first column VPHY to id_x - 1
-						MPI_Send(&VPHY(t - 1, 1, 0), 1, column,
+						MPI_Send(&HPHY(t - 1, 1, 1), 1, column,
 								 ID(id_x - 1, id_y), 0, MPI_COMM_WORLD);
 
 						// Receive first column UPHY from id_x - 1
-						MPI_Recv(&UPHY(t - 1, 0, 0), 1, column,
+						MPI_Recv(&UPHY(t - 1, 0, 1), 1, column,
 								 ID(id_x - 1, id_y), 0, MPI_COMM_WORLD, NULL);
+
+						// Send first column VPHY to id_x - 1
+						MPI_Send(&VPHY(t - 1, 1, 1), 1, column,
+								 ID(id_x - 1, id_y), 0, MPI_COMM_WORLD);
 					}
 					if (id_x < p_x - 1) // not last column blocks process
 					{
 						// Receive last column HPHY from id_x + 1
-						MPI_Recv(&HPHY(t - 1, size_block_x, 0), 1, column,
-								 ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, NULL);
-
-						// Receive last column VPHY from id_x + 1
-						MPI_Recv(&VPHY(t - 1, size_block_x, 0), 1, column,
+						MPI_Recv(&HPHY(t - 1, size_block_x + 1, 1), 1, column,
 								 ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, NULL);
 
 						// Send last column UPHY to id_x + 1
-						MPI_Send(&UPHY(t - 1, size_block_x - 1, 0), 1, column,
+						MPI_Send(&UPHY(t - 1, size_block_x, 1), 1, column,
 								 ID(id_x + 1, id_y), 0, MPI_COMM_WORLD);
+
+						// Receive last column VPHY from id_x + 1
+						MPI_Recv(&VPHY(t - 1, size_block_x + 1, 1), 1, column,
+								 ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, NULL);
 					}
 
 					// Echanges des lignes
 					if (id_y > 0) // not first line blocks process
 					{
 						// Receive first line HPHY from id_y - 1
-						MPI_Recv(&HPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+						MPI_Recv(&HPHY(t - 1, 1, 0), size_block_x, MPI_DOUBLE,
 								 ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, NULL);
 
 						// Receive first line UPHY from id_y - 1
-						MPI_Recv(&UPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+						MPI_Recv(&UPHY(t - 1, 1, 0), size_block_x, MPI_DOUBLE,
 								 ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, NULL);
 
 						// Send first line VPHY to id_y - 1
-						MPI_Send(&VPHY(t - 1, 0, 1), size_block_x, MPI_DOUBLE,
+						MPI_Send(&VPHY(t - 1, 1, 1), size_block_x, MPI_DOUBLE,
 								 ID(id_x, id_y - 1), 0, MPI_COMM_WORLD);
 					}
 					if (id_y < p_y - 1) // not last line blocks process
 					{
 						// Send last line HPHY to id_y + 1
-						MPI_Send(&HPHY(t - 1, 0, size_block_y - 1),
-								 size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
-								 0, MPI_COMM_WORLD);
+						MPI_Send(&HPHY(t - 1, 1, size_block_y), size_block_x,
+								 MPI_DOUBLE, ID(id_x, id_y + 1), 0,
+								 MPI_COMM_WORLD);
 
 						// Send last line UPHY to id_y + 1
-						MPI_Send(&UPHY(t - 1, 0, size_block_y - 1),
-								 size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
-								 0, MPI_COMM_WORLD);
+						MPI_Send(&UPHY(t - 1, 1, size_block_y), size_block_x,
+								 MPI_DOUBLE, ID(id_x, id_y + 1), 0,
+								 MPI_COMM_WORLD);
 
 						// Receive last line VPHY from id_y + 1
-						MPI_Recv(&VPHY(t - 1, 0, size_block_y), size_block_x,
-								 MPI_DOUBLE, ID(id_x, id_y + 1), 0,
-								 MPI_COMM_WORLD, NULL);
+						MPI_Recv(&VPHY(t - 1, 1, size_block_y + 1),
+								 size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
+								 0, MPI_COMM_WORLD, NULL);
 					}
 
 					// Echanges des coins
@@ -375,8 +375,7 @@ void forward(void)
 								 ID(id_x - 1, id_y - 1), 0, MPI_COMM_WORLD,
 								 NULL);
 
-						// Send first top left VPHY value to (id_x - 1, id_y -
-						// 1)
+						// Send first top left VPHY value to (id_x-1, id_y-1)
 						MPI_Send(&VPHY(t - 1, 1, 1), 1, MPI_DOUBLE,
 								 ID(id_x - 1, id_y - 1), 0, MPI_COMM_WORLD);
 					}
@@ -385,17 +384,16 @@ void forward(void)
 					{
 						// Send last bottom right UPHY value to (id_x + 1, id_y
 						// + 1)
-						MPI_Send(
-							&UPHY(t - 1, size_block_x - 1, size_block_y - 1), 1,
-							MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
-							MPI_COMM_WORLD);
+						MPI_Send(&UPHY(t - 1, size_block_x, size_block_y), 1,
+								 MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
+								 MPI_COMM_WORLD);
 
 						// Receive last bottom right UPHY value from (id_x + 1,
-						// id_y
-						// + 1)
-						MPI_Recv(&VPHY(t - 1, size_block_x, size_block_y), 1,
-								 MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
-								 MPI_COMM_WORLD, NULL);
+						// id_y + 1)
+						MPI_Recv(
+							&VPHY(t - 1, size_block_x + 1, size_block_y + 1), 1,
+							MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
+							MPI_COMM_WORLD, NULL);
 					}
 				}
 				else // bands
@@ -435,7 +433,7 @@ void forward(void)
 		if (block)
 		{
 			start_x += 1; // skip first extra column
-			end_x -= 1;   // skip last extra column
+			end_x += 1;   // skip last extra column
 		}
 
 		if (async) // we have to reduce block by 1 line for each sides
@@ -471,7 +469,7 @@ void forward(void)
 			if (block)
 			{
 				// we have already calculated y = 1 and y = size_block_y
-				for (int y = 2; y < size_block_y - 1; y++)
+				for (int y = 1; y < size_block_y; y++)
 				{
 					FORWARD(t, 1, y);			 // first calculation column
 					FORWARD(t, size_block_x, y); // last calculation column
