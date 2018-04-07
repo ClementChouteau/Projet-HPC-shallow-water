@@ -9,7 +9,7 @@ NODES:=2
 HOSTFILE:=../hostfile
 
 CXX=mpicxx
-CXXFLAGS=-Iinc -Wall -O3 -I $(INCLUDE) -g
+CXXFLAGS=-Wall -Werror -Wextra -O3 -I $(INCLUDE)
 LDFLAGS=-lboost_program_options -lm
 EX=mpirun
 EXFLAGS=-n $(NODES) -hostfile $(HOSTFILE) --map-by node
@@ -23,24 +23,26 @@ rep:
 bin/$(TARGET): $(OBJ)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-exec: all
+exec: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) $(ARGS) $(MODE)
 
 obj/%.o: src/%.cpp
 	$(CXX) -c -o $@ $^ $(CXXFLAGS)
 
-test2: all
-	$(EX) $(EXFLAGS) bin/$(TARGET) -x 512 -y 512 -t 20
-	# $(EX) $(EXFLAGS) bin/$(TARGET) -x 8192 -y 8192 -t 20
+test2: rep bin/$(TARGET)
+	$(EX) $(EXFLAGS) bin/$(TARGET) -x 8192 -y 8192 -t 20
 
-test3: all
+test3: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ~/
 
-testSave: all
+testSave: rep bin/$(TARGET)
+	-rm ./bin/shalw_512x512_T40.sav	
 	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 $(MODE) --export --export-path ./bin/
 	../save_last.py ./bin/shalw_512x512_T40.sav
 
-io: all
+io: rep bin/$(TARGET)
+	-rm ./bin/shalw_512x512_T40.png
+	-rm ./bin/shalw_512x512_T40.sav
 	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x 512 -y 512 -t 40 $(MODE) --export --export-path ./bin/
 	../save_last.py bin/shalw_512x512_T40.sav
 	gimp ./bin/shalw_512x512_T40.png

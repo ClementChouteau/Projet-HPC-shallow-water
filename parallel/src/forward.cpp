@@ -1,25 +1,12 @@
-#include "export.h"
-#include "shalw.h"
 #include <math.h>
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "export.h"
+#include "forward.h"
+#include "shalw.h"
 
-#include <mpi.h>
-
-#define U_TAG (1)
-#define V_TAG (2)
-#define H_TAG (3)
-
-#define U_RECEIVED (1)
-#define V_RECEIVED (2)
-#define H_RECEIVED (4)
-
-#define U_COMPUTED (1)
-#define V_COMPUTED (2)
-#define H_COMPUTED (4)
-
-#define LINE(line, k) (line + k * (size_y / q))
 
 double hFil_forward(int t, int i, int j)
 {
@@ -138,18 +125,35 @@ void FORWARD(int t, int i, int j)
 	VFIL(t, i, j) = vFil_forward(t, i, j);
 }
 
-void forward_bands_sync(void)
+// Cette fonction est longue et concentre les versions bandes/blocks sync/async
+// pour factoriser le code et bien comprendre ce que ces modes impliquent sur
+// une version standard. Ne pas hésiter à masquer des boucles ou des
+// branchements dans un éditeur de code pour avoir un aperçu global de la
+// fonction.
+void forward(void)
 {
 	double svdt = 0.;
 	int	t	= 0;
 
-	if (file_export)
+	// Special type MPI to exchange array columns
+	MPI_Datatype column;
+	MPI_Type_vector(size_block_y, 1, size_block_x, MPI_DOUBLE, &column);
+	MPI_Type_commit(&column);
+
+	// Requests for async mode
+	MPI_Request r[8], s[8];
+	for (int i = 0; i < 8; i++)
 	{
-		create_file(size_x * size_y / p);
-		export_step_bands(t, 0);
+		r[i] = MPI_REQUEST_NULL;
+		s[i] = MPI_REQUEST_NULL;
 	}
 
-	for (t = 1; t < nb_steps; t++)
+	if (file_export)
+		create_file();
+
+	// t = 0 is the initial state already in memory by gauss_init
+	for (t = 1; t < nb_steps; t++) // we talk about t iterations but actually we
+								   // calculate only t - 1 times
 	{
 		if (t == 1)
 		{
@@ -157,689 +161,333 @@ void forward_bands_sync(void)
 			dt   = 0;
 		}
 		if (t == 2)
-		{
 			dt = svdt / 2.;
-		}
-
-		// Travail par bandes, 1 bande par processus
-		for (int j = id * (size_y / p); j < (id + 1) * (size_y / p); j++)
-			for (int i = 0; i < size_x; i++)
-				FORWARD(t, i, j);
-
-		// Echange id-1 <=> id
-		if (id > 0)
-		{
-			MPI_Recv(&HPHY(t, 0, id * (size_y / p) - 1), size_x, MPI_DOUBLE,
-					 id - 1, 0, MPI_COMM_WORLD, NULL);
-			MPI_Recv(&UPHY(t, 0, id * (size_y / p) - 1), size_x, MPI_DOUBLE,
-					 id - 1, 0, MPI_COMM_WORLD, NULL);
-			MPI_Send(&VPHY(t, 0, id * (size_y / p)), size_x, MPI_DOUBLE, id - 1,
-					 0, MPI_COMM_WORLD);
-		}
-
-		// Echange id <=> id+1
-		if (id < p - 1)
-		{
-			MPI_Send(&HPHY(t, 0, (id + 1) * (size_y / p) - 1), size_x,
-					 MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD);
-			MPI_Send(&UPHY(t, 0, (id + 1) * (size_y / p) - 1), size_x,
-					 MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD);
-			MPI_Recv(&VPHY(t, 0, (id + 1) * (size_y / p)), size_x, MPI_DOUBLE,
-					 id + 1, 0, MPI_COMM_WORLD, NULL);
-		}
 
 		if (file_export)
-			export_step_bands(t, 0);
+			export_step(t - 1); // t - 1 is ready to export
+								// recouvrement par le calcul en async
+
+		// ECHANGE DE LIGNES
+		// à l'instant t, la grille t-1 est calculée, on peut donc échanger les
+		// lignes de t - 1
+		if (t > 1)
+		{
+			if (async)
+			{
+				if (block)
+				{
+					// Echanges des Colonnes
+					if (id_x > 0) // not first column blocks process
+					{
+						// Send first column HPHY to id_x - 1
+						MPI_Isend(&HPHY(t - 1, 1, 0), 1, column,
+								  ID(id_x - 1, id_y), 0, MPI_COMM_WORLD, s);
+
+						// Send first column VPHY to id_x - 1
+						MPI_Isend(&VPHY(t - 1, 1, 0), 1, column,
+								  ID(id_x - 1, id_y), 0, MPI_COMM_WORLD, s + 1);
+
+						// Receive first column UPHY from id_x - 1
+						MPI_Irecv(&UPHY(t - 1, 0, 0), 1, column,
+								  ID(id_x - 1, id_y), 0, MPI_COMM_WORLD, r);
+					}
+					if (id_x < p_x - 1) // not last column blocks process
+					{
+						// Receive last column HPHY from id_x + 1
+						MPI_Irecv(&HPHY(t - 1, size_block_x, 0), 1, column,
+								  ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, r + 1);
+
+						// Receive last column VPHY from id_x + 1
+						MPI_Irecv(&VPHY(t - 1, size_block_x, 0), 1, column,
+								  ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, r + 2);
+
+						// Send last column UPHY to id_x + 1
+						MPI_Isend(&UPHY(t - 1, size_block_x - 1, 0), 1, column,
+								  ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, s + 2);
+					}
+
+					// Echanges des lignes
+					if (id_y > 0) // not first line blocks process
+					{
+						// Receive first line HPHY from id_y - 1
+						MPI_Irecv(&HPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+								  ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, r + 3);
+
+						// Receive first line UPHY from id_y - 1
+						MPI_Irecv(&UPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+								  ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, r + 4);
+
+						// Send first line VPHY to id_y - 1
+						MPI_Isend(&VPHY(t - 1, 0, 1), size_block_x, MPI_DOUBLE,
+								  ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, s + 3);
+					}
+					if (id_y < p_y - 1) // not last line blocks process
+					{
+						// Send last line HPHY to id_y + 1
+						MPI_Isend(&HPHY(t - 1, 0, size_block_y - 1),
+								  size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
+								  0, MPI_COMM_WORLD, s + 4);
+
+						// Send last line UPHY to id_y + 1
+						MPI_Isend(&UPHY(t - 1, 0, size_block_y - 1),
+								  size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
+								  0, MPI_COMM_WORLD, s + 5);
+
+						// Receive last line VPHY from id_y + 1
+						MPI_Irecv(&VPHY(t - 1, 0, size_block_y), size_block_x,
+								  MPI_DOUBLE, ID(id_x, id_y + 1), 0,
+								  MPI_COMM_WORLD, r + 5);
+					}
+
+					// Echanges des coins
+					if (id_x > 0 &&
+						id_y > 0) // not first top left block process
+					{
+						// Receive first top left UPHY value from (id_x - 1,
+						// id_y - 1)
+						MPI_Irecv(&UPHY(t - 1, 0, 0), 1, MPI_DOUBLE,
+								  ID(id_x - 1, id_y - 1), 0, MPI_COMM_WORLD,
+								  r + 6);
+
+						// Send first top left VPHY value to (id_x - 1, id_y -
+						// 1)
+						MPI_Isend(&VPHY(t - 1, 1, 1), 1, MPI_DOUBLE,
+								  ID(id_x - 1, id_y - 1), 0, MPI_COMM_WORLD,
+								  s + 6);
+					}
+					if (id_x < p_x - 1 &&
+						id_y < p_y - 1) // not last bottom right block process
+					{
+						// Send last bottom right UPHY value to (id_x + 1, id_y
+						// + 1)
+						MPI_Isend(
+							&UPHY(t - 1, size_block_x - 1, size_block_y - 1), 1,
+							MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
+							MPI_COMM_WORLD, s + 7);
+
+						// Receive last bottom right UPHY value from (id_x + 1,
+						// id_y
+						// + 1)
+						MPI_Irecv(&VPHY(t - 1, size_block_x, size_block_y), 1,
+								  MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
+								  MPI_COMM_WORLD, r + 7);
+					}
+				}
+				else // bands
+				{
+					// Echange id-1 <=> id
+					if (id > 0)
+					{
+						MPI_Irecv(&HPHY(t - 1, 0, start_block_y - 1),
+								  size_block_x, MPI_DOUBLE, id - 1, 0,
+								  MPI_COMM_WORLD, r);
+						MPI_Irecv(&UPHY(t - 1, 0, start_block_y - 1),
+								  size_block_x, MPI_DOUBLE, id - 1, 0,
+								  MPI_COMM_WORLD, r + 1);
+						MPI_Isend(&VPHY(t - 1, 0, start_block_y), size_block_x,
+								  MPI_DOUBLE, id - 1, 0, MPI_COMM_WORLD, s + 0);
+					}
+					// Echange id <=> id+1
+					if (id < p - 1)
+					{
+						MPI_Isend(&HPHY(t - 1, 0, size_block_y - 1),
+								  size_block_x, MPI_DOUBLE, id + 1, 0,
+								  MPI_COMM_WORLD, s + 1);
+						MPI_Isend(&UPHY(t - 1, 0, size_block_y - 1),
+								  size_block_x, MPI_DOUBLE, id + 1, 0,
+								  MPI_COMM_WORLD, s + 2);
+						MPI_Irecv(&VPHY(t - 1, 0, size_block_y), size_block_x,
+								  MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD, r + 2);
+					}
+				}
+			}
+			else // sync
+			{
+				if (block)
+				{
+					// Echanges des Colonnes
+					if (id_x > 0) // not first column blocks process
+					{
+						// Send first column HPHY to id_x - 1
+						MPI_Send(&HPHY(t - 1, 1, 0), 1, column,
+								 ID(id_x - 1, id_y), 0, MPI_COMM_WORLD);
+
+						// Send first column VPHY to id_x - 1
+						MPI_Send(&VPHY(t - 1, 1, 0), 1, column,
+								 ID(id_x - 1, id_y), 0, MPI_COMM_WORLD);
+
+						// Receive first column UPHY from id_x - 1
+						MPI_Recv(&UPHY(t - 1, 0, 0), 1, column,
+								 ID(id_x - 1, id_y), 0, MPI_COMM_WORLD, NULL);
+					}
+					if (id_x < p_x - 1) // not last column blocks process
+					{
+						// Receive last column HPHY from id_x + 1
+						MPI_Recv(&HPHY(t - 1, size_block_x, 0), 1, column,
+								 ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, NULL);
+
+						// Receive last column VPHY from id_x + 1
+						MPI_Recv(&VPHY(t - 1, size_block_x, 0), 1, column,
+								 ID(id_x + 1, id_y), 0, MPI_COMM_WORLD, NULL);
+
+						// Send last column UPHY to id_x + 1
+						MPI_Send(&UPHY(t - 1, size_block_x - 1, 0), 1, column,
+								 ID(id_x + 1, id_y), 0, MPI_COMM_WORLD);
+					}
+
+					// Echanges des lignes
+					if (id_y > 0) // not first line blocks process
+					{
+						// Receive first line HPHY from id_y - 1
+						MPI_Recv(&HPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+								 ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, NULL);
+
+						// Receive first line UPHY from id_y - 1
+						MPI_Recv(&UPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+								 ID(id_x, id_y - 1), 0, MPI_COMM_WORLD, NULL);
+
+						// Send first line VPHY to id_y - 1
+						MPI_Send(&VPHY(t - 1, 0, 1), size_block_x, MPI_DOUBLE,
+								 ID(id_x, id_y - 1), 0, MPI_COMM_WORLD);
+					}
+					if (id_y < p_y - 1) // not last line blocks process
+					{
+						// Send last line HPHY to id_y + 1
+						MPI_Send(&HPHY(t - 1, 0, size_block_y - 1),
+								 size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
+								 0, MPI_COMM_WORLD);
+
+						// Send last line UPHY to id_y + 1
+						MPI_Send(&UPHY(t - 1, 0, size_block_y - 1),
+								 size_block_x, MPI_DOUBLE, ID(id_x, id_y + 1),
+								 0, MPI_COMM_WORLD);
+
+						// Receive last line VPHY from id_y + 1
+						MPI_Recv(&VPHY(t - 1, 0, size_block_y), size_block_x,
+								 MPI_DOUBLE, ID(id_x, id_y + 1), 0,
+								 MPI_COMM_WORLD, NULL);
+					}
+
+					// Echanges des coins
+					if (id_x > 0 &&
+						id_y > 0) // not first top left block process
+					{
+						// Receive first top left UPHY value from (id_x - 1,
+						// id_y - 1)
+						MPI_Recv(&UPHY(t - 1, 0, 0), 1, MPI_DOUBLE,
+								 ID(id_x - 1, id_y - 1), 0, MPI_COMM_WORLD,
+								 NULL);
+
+						// Send first top left VPHY value to (id_x - 1, id_y -
+						// 1)
+						MPI_Send(&VPHY(t - 1, 1, 1), 1, MPI_DOUBLE,
+								 ID(id_x - 1, id_y - 1), 0, MPI_COMM_WORLD);
+					}
+					if (id_x < p_x - 1 &&
+						id_y < p_y - 1) // not last bottom right block process
+					{
+						// Send last bottom right UPHY value to (id_x + 1, id_y
+						// + 1)
+						MPI_Send(
+							&UPHY(t - 1, size_block_x - 1, size_block_y - 1), 1,
+							MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
+							MPI_COMM_WORLD);
+
+						// Receive last bottom right UPHY value from (id_x + 1,
+						// id_y
+						// + 1)
+						MPI_Recv(&VPHY(t - 1, size_block_x, size_block_y), 1,
+								 MPI_DOUBLE, ID(id_x + 1, id_y + 1), 0,
+								 MPI_COMM_WORLD, NULL);
+					}
+				}
+				else // bands
+				{
+					// Echange id-1 <=> id
+					if (id > 0)
+					{
+						MPI_Recv(&HPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+								 id - 1, 0, MPI_COMM_WORLD, NULL);
+						MPI_Recv(&UPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+								 id - 1, 0, MPI_COMM_WORLD, NULL);
+						MPI_Send(&VPHY(t - 1, 0, 1), size_block_x, MPI_DOUBLE,
+								 id - 1, 0, MPI_COMM_WORLD);
+					}
+
+					// Echange id <=> id+1
+					if (id < p - 1)
+					{
+						MPI_Send(&HPHY(t - 1, 0, size_block_y), size_block_x,
+								 MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD);
+						MPI_Send(&UPHY(t - 1, 0, size_block_y), size_block_x,
+								 MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD);
+						MPI_Recv(&VPHY(t - 1, 0, size_block_y + 1),
+								 size_block_x, MPI_DOUBLE, id + 1, 0,
+								 MPI_COMM_WORLD, NULL);
+					}
+				}
+			}
+		}
+
+		// CALCULATIONS PREPARATION
+		int start_x = 0;
+		int start_y = 1; // skip first extra line
+		int end_x   = size_block_x;
+		int end_y   = size_block_y + 1; // skip last extra line
+
+		if (block)
+		{
+			start_x += 1; // skip first extra column
+			end_x -= 1;   // skip last extra column
+		}
+
+		if (async) // we have to reduce block by 1 line for each sides
+		{
+			start_y += 1; // no calculations for first line
+			if (block)
+				start_x += 1; // no calculations for first column
+			// by not changing end_x/y we also reduce calculations for last line
+			// and column
+		}
+
+		// HERE ARE MOST CALCULATIONS for t
+		// Peut facilement être parallélisé avec OpenMP
+		for (int y = start_y; y < end_y; y++)
+			for (int x = start_x; x < end_x; x++)
+				FORWARD(t, x, y);
+
+		if (async) // Vérifier échange des bords t-1 avant de finir les calculs
+		{
+			// We need these receptions before finish calculations
+			MPI_Waitall(8, r, MPI_STATUSES_IGNORE); // Attente réception bords
+
+			// On fini les calculs des bords
+			start_x -= 1;
+			for (int x = start_x; x < end_x; x++)
+			{
+				FORWARD(t, x, 1);			 // first calculation line
+				FORWARD(t, x, size_block_y); // last calculation line
+			}
+			if (block)
+			{
+				// we have already calculated y = 1 and y = size_block_y
+				for (int y = 2; y < size_block_y - 1; y++)
+				{
+					FORWARD(t, 1, y);			 // first calculation column
+					FORWARD(t, size_block_x, y); // last calculation column
+				}
+			}
+			// No need to wait for these before calculations
+			MPI_Waitall(8, s, MPI_STATUSES_IGNORE); // Attente envoi bords
+		}
 
 		if (t == 2)
 			dt = svdt;
 	}
 
-	MPI_Barrier(MPI_COMM_WORLD);
-
 	if (file_export)
 	{
-		finalize_export();
-	}
-}
-
-void forward_bands_async(void)
-{
-	double svdt = 0.;
-	int	t	= 0;
-
-	if (file_export)
-		create_file(size_x * size_y / p);
-
-	MPI_Request r[3] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL};
-
-	MPI_Request s[3] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL};
-
-	for (t = 1; t < nb_steps; t++)
-	{
-		if (t == 1)
-		{
-			svdt = dt;
-			dt   = 0;
-		}
-		if (t == 2)
-		{
-			dt = svdt / 2.;
-		}
-
-		// Recouvrement par le calcul
-		// Envoie de t-1 pendant le calcul du bloc intérieur
-		if (file_export)
-			export_step_bands(t - 1, 1);
-
-		// Travail par bandes, 1 bande par processus
-
-		// (1) Calcul du bloc intérieur
-		for (int j = id * (size_y / p) + 1; j < (id + 1) * (size_y / p) - 1;
-			 j++)
-			for (int i = 0; i < size_x; i++)
-				FORWARD(t, i, j);
-
-		// (2) Attente réception des bords
-		MPI_Waitall(3, r, MPI_STATUSES_IGNORE);
-
-		// (3) Attente envoi anciens bords
-		MPI_Waitall(3, s, MPI_STATUSES_IGNORE);
-
-		// (4) Réceptions suivantes
-
-		if (id > 0) // Echange id-1 <=> id
-		{
-			MPI_Irecv(&HPHY(t, 0, id * (size_y / p) - 1), size_x, MPI_DOUBLE,
-					  id - 1, 0, MPI_COMM_WORLD, r + 0);
-			MPI_Irecv(&UPHY(t, 0, id * (size_y / p) - 1), size_x, MPI_DOUBLE,
-					  id - 1, 0, MPI_COMM_WORLD, r + 1);
-		}
-		if (id < p - 1) // Echange id <=> id+1
-		{
-			MPI_Irecv(&VPHY(t, 0, (id + 1) * (size_y / p)), size_x, MPI_DOUBLE,
-					  id + 1, 0, MPI_COMM_WORLD, r + 2);
-		}
-
-		// (5) Calcul de mes bords
-		for (int i = 0; i < size_x; i++)
-		{
-			FORWARD(t, i, id * (size_y / p));
-			FORWARD(t, i, (id + 1) * (size_y / p) - 1);
-		}
-
-		// (6) Envoi de mes bords calculés
-		if (id > 0) // Echange id-1 <=> id
-		{
-			MPI_Isend(&VPHY(t, 0, id * (size_y / p)), size_x, MPI_DOUBLE,
-					  id - 1, 0, MPI_COMM_WORLD, s + 0);
-		}
-		if (id < p - 1) // Echange id <=> id+1
-		{
-			MPI_Isend(&HPHY(t, 0, (id + 1) * (size_y / p) - 1), size_x,
-					  MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD, s + 1);
-			MPI_Isend(&UPHY(t, 0, (id + 1) * (size_y / p) - 1), size_x,
-					  MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD, s + 2);
-		}
-
-		if (t == 2)
-			dt = svdt;
-	}
-
-	MPI_Barrier(MPI_COMM_WORLD);
-
-	if (file_export)
-	{
-		export_step_bands(t - 1, 1); // Out of for
-		finalize_export();
-	}
-}
-
-/*
-void forward_bands_async(void)
-{
-	double svdt = 0.;
-	int	t	= 0;
-
-	if (file_export)
-	{
-		create_file(size_x * size_y / p);
-		export_step_bands_sync(t);
-	}
-
-	MPI_Request r[3] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL};
-	int			received = U_RECEIVED | V_RECEIVED | H_RECEIVED;
-	for (t = 1; t < nb_steps; t++)
-	{
-		// printf("id: %d, t: %d\n", id, t);
-		if (t == 1)
-		{
-			svdt = dt;
-			dt   = 0;
-		}
-		if (t == 2)
-		{
-			dt = svdt / 2.;
-		}
-
-		// Les processeurs de rang 0 et p-1 n'ont pas besoin de tout
-		if (id == 0)
-			received |= U_RECEIVED | H_RECEIVED;
-		if (id == p - 1)
-			received |= V_RECEIVED;
-
-		// Calculs Blocs(t) -> Blocs(t+1)
-		MPI_Request s[3]	 = {MPI_REQUEST_NULL, MPI_REQUEST_NULL,
-							MPI_REQUEST_NULL};
-		int			computed = 0;
-		while (computed != (U_COMPUTED | V_COMPUTED | H_COMPUTED))
-		{
-			// Attendre d'avoir une rÃ©ception
-			int indx;
-			MPI_Waitany(3, r, &indx, MPI_STATUS_IGNORE);
-
-			//  mettre le flag recv_flags correspondant
-			switch (indx)
-			{
-			case 0:
-				received |= U_RECEIVED;
-				r[0] = MPI_REQUEST_NULL;
-				break;
-			case 1:
-				received |= V_RECEIVED;
-				r[1] = MPI_REQUEST_NULL;
-				break;
-			case 2:
-				received |= H_RECEIVED;
-				r[2] = MPI_REQUEST_NULL;
-				break;
-			}
-
-			// On regarde ce que l'on peut calculer
-			if (received & (U_RECEIVED | V_RECEIVED) &&
-				(computed & H_COMPUTED) == 0)
-			{
-				// Travail par bandes, 1 bande par processus
-				for (int j = id * (size_y / p); j < (id + 1) * (size_y / p);
-					 j++)
-				{
-					for (int i = 0; i < size_x; i++)
-					{
-						HPHY(t, i, j) = hPhy_forward(t, i, j);
-					}
-				}
-
-				// envoyer ma premiÃ¨re ligne de HPHY
-				if (id != p - 1)
-					MPI_Isend(&HPHY(t, 0, (id + 1) * (size_y / p) - 1), size_x,
-							  MPI_DOUBLE, id + 1, H_TAG, MPI_COMM_WORLD, &s[2]);
-
-				// recevoir leur derniÃ¨re ligne de HPHY
-				if (id != 0)
-					MPI_Irecv(&HPHY(t, 0, id * (size_y / p) - 1), size_x,
-							  MPI_DOUBLE, id - 1, H_TAG, MPI_COMM_WORLD, &r[2]);
-
-				for (int j = id * (size_y / p); j < (id + 1) * (size_y / p);
-					 j++)
-				{
-					for (int i = 0; i < size_x; i++)
-					{
-						HFIL(t, i, j) = hFil_forward(t, i, j);
-					}
-				}
-
-				computed |= H_COMPUTED;
-			}
-
-			if (received & (V_RECEIVED | H_RECEIVED) &&
-				(computed & U_COMPUTED) == 0)
-			{
-				// Travail par bandes, 1 bande par processus
-				for (int j = id * (size_y / p); j < (id + 1) * (size_y / p);
-					 j++)
-				{
-					for (int i = 0; i < size_x; i++)
-					{
-						UPHY(t, i, j) = uPhy_forward(t, i, j);
-					}
-				}
-
-				// envoyer ma premiÃ¨re ligne de UPHY
-				if (id != p - 1)
-					MPI_Isend(&UPHY(t, 0, (id + 1) * (size_y / p) - 1), size_x,
-							  MPI_DOUBLE, id + 1, U_TAG, MPI_COMM_WORLD, &s[0]);
-
-				// recevoir leur derniÃ¨re ligne de UPHY
-				if (id != 0)
-					MPI_Irecv(&UPHY(t, 0, id * (size_y / p) - 1), size_x,
-							  MPI_DOUBLE, id - 1, U_TAG, MPI_COMM_WORLD, &r[0]);
-
-				for (int j = id * (size_y / p); j < (id + 1) * (size_y / p);
-					 j++)
-				{
-					for (int i = 0; i < size_x; i++)
-					{
-						UFIL(t, i, j) = uFil_forward(t, i, j);
-					}
-				}
-
-				computed |= U_COMPUTED;
-			}
-
-			if (received & (U_RECEIVED | H_RECEIVED) &&
-				(computed & V_COMPUTED) == 0)
-			{
-				// Travail par bandes, 1 bande par processus
-				for (int j = id * (size_y / p); j < (id + 1) * (size_y / p);
-					 j++)
-				{
-					for (int i = 0; i < size_x; i++)
-					{
-						VPHY(t, i, j) = vPhy_forward(t, i, j);
-					}
-				}
-
-				// envoyer ma premiÃ¨re ligne de VPHY
-				if (id != 0)
-					MPI_Isend(&VPHY(t, 0, id * (size_y / p)), size_x,
-							  MPI_DOUBLE, id - 1, V_TAG, MPI_COMM_WORLD, &s[1]);
-
-				// recevoir leur derniÃ¨re ligne de VPHY
-				if (id != p - 1)
-					MPI_Irecv(&VPHY(t, 0, (id + 1) * (size_y / p)), size_x,
-							  MPI_DOUBLE, id + 1, V_TAG, MPI_COMM_WORLD, &r[1]);
-
-				for (int j = id * (size_y / p); j < (id + 1) * (size_y / p);
-					 j++)
-				{
-					for (int i = 0; i < size_x; i++)
-					{
-						VFIL(t, i, j) = vFil_forward(t, i, j);
-					}
-				}
-
-				computed |= V_COMPUTED;
-			}
-		}
-
-		received = 0;
-
-		// Attente fin des envois
-		MPI_Waitall(3, s, MPI_STATUSES_IGNORE);
-
-		if (file_export)
-		{
-			export_step_bands_sync(t);
-		}
-
-		if (t == 2)
-		{
-			dt = svdt;
-		}
-	}
-
-	MPI_Barrier(MPI_COMM_WORLD);
-
-	if (file_export)
-	{
-		finalize_export();
-	}
-}
-*/
-
-
-int id_from_xy(int x, int y)
-{
-	return y * q + x;
-}
-
-void forward_blocks_sync(void)
-{
-	double svdt = 0.;
-	int	t	= 0;
-
-	if (file_export)
-	{
-		create_file(size_x / q * size_y / q);
-		export_step_blocks(t, 0);
-	}
-
-	double* line = (double*)malloc((size_y / q) * sizeof(double));
-
-	for (t = 1; t < nb_steps; t++)
-	{
-		if (t == 1)
-		{
-			svdt = dt;
-			dt   = 0;
-		}
-		if (t == 2)
-		{
-			dt = svdt / 2.;
-		}
-
-		// Travail par blocks, 1 block par processus
-
-		const int id_x = id % q;
-		const int id_y = id / q;
-
-		for (int j = id_y * (size_y / q); j < (id_y + 1) * (size_y / q); j++)
-			for (int i = id_x * (size_x / q); i < (id_x + 1) * (size_x / q);
-				 i++)
-				FORWARD(t, i, j);
-
-		// Echanges des lignes
-		if (id_y != q - 1)
-		{
-			MPI_Send(
-				&HPHY(t, id_x * (size_x / q), (id_y + 1) * (size_y / q) - 1),
-				size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y + 1), 0,
-				MPI_COMM_WORLD);
-			MPI_Send(
-				&UPHY(t, id_x * (size_x / q), (id_y + 1) * (size_y / q) - 1),
-				size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y + 1), 0,
-				MPI_COMM_WORLD);
-
-			MPI_Recv(&VPHY(t, id_x * (size_x / q), (id_y + 1) * (size_y / q)),
-					 size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y + 1), 0,
-					 MPI_COMM_WORLD, NULL);
-		}
-		if (id_y != 0)
-		{
-			MPI_Recv(&HPHY(t, id_x * (size_x / q), id_y * (size_y / q) - 1),
-					 size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y - 1), 0,
-					 MPI_COMM_WORLD, NULL);
-			MPI_Recv(&UPHY(t, id_x * (size_x / q), id_y * (size_y / q) - 1),
-					 size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y - 1), 0,
-					 MPI_COMM_WORLD, NULL);
-
-			MPI_Send(&VPHY(t, id_x * (size_x / q), id_y * (size_y / q)),
-					 size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y - 1), 0,
-					 MPI_COMM_WORLD);
-		}
-
-		// Echanges des Colonnes
-		if (id_x != 0)
-		{
-			for (int j = 0; j < size_y / q; j++)
-				line[j] = HPHY(t, id_x * (size_x / q), id_y * (size_y / q) + j);
-			MPI_Send(line, size_y / q, MPI_DOUBLE, id_from_xy(id_x - 1, id_y),
-					 0, MPI_COMM_WORLD);
-
-			for (int j = 0; j < size_y / q; j++)
-				line[j] = VPHY(t, id_x * (size_x / q), id_y * (size_y / q) + j);
-			MPI_Send(line, size_y / q, MPI_DOUBLE, id_from_xy(id_x - 1, id_y),
-					 0, MPI_COMM_WORLD);
-
-			MPI_Recv(line, size_y / q, MPI_DOUBLE, id_from_xy(id_x - 1, id_y),
-					 0, MPI_COMM_WORLD, NULL);
-			for (int j = 0; j < size_y / q; j++)
-				UPHY(t, id_x * (size_x / q) - 1, id_y * (size_y / q) + j) =
-					line[j];
-		}
-		if (id_x != q - 1)
-		{
-			MPI_Recv(line, size_y / q, MPI_DOUBLE, id_from_xy(id_x + 1, id_y),
-					 0, MPI_COMM_WORLD, NULL);
-			for (int j = 0; j < size_y / q; j++)
-				HPHY(t, (id_x + 1) * (size_x / q), id_y * (size_y / q) + j) =
-					line[j];
-
-			MPI_Recv(line, size_y / q, MPI_DOUBLE, id_from_xy(id_x + 1, id_y),
-					 0, MPI_COMM_WORLD, NULL);
-			for (int j = 0; j < size_y / q; j++)
-				VPHY(t, (id_x + 1) * (size_x / q), id_y * (size_y / q) + j) =
-					line[j];
-
-			for (int j = 0; j < size_y / q; j++)
-				line[j] = UPHY(t, (id_x + 1) * (size_x / q) - 1,
-							   id_y * (size_y / q) + j);
-			MPI_Send(line, size_y / q, MPI_DOUBLE, id_from_xy(id_x + 1, id_y),
-					 0, MPI_COMM_WORLD);
-		}
-
-		// Echanges des coins
-		if (id_y != 0 && id_x != 0)
-		{
-			MPI_Recv(&UPHY(t, id_x * (size_x / q) - 1, id_y * (size_y / q)) - 1,
-					 1, MPI_DOUBLE, id_from_xy(id_x - 1, id_y - 1), 0,
-					 MPI_COMM_WORLD, NULL);
-			MPI_Send(&VPHY(t, id_x * (size_x / q), id_y * (size_y / q)), 1,
-					 MPI_DOUBLE, id_from_xy(id_x - 1, id_y - 1), 0,
-					 MPI_COMM_WORLD);
-		}
-
-		if (id_y != q - 1 && id_x != q - 1)
-		{
-			MPI_Send(&UPHY(t, (id_x + 1) * (size_x / q) - 1,
-						   (id_y + 1) * (size_y / q)) -
-						 1,
-					 1, MPI_DOUBLE, id_from_xy(id_x + 1, id_y + 1), 0,
-					 MPI_COMM_WORLD);
-			MPI_Recv(
-				&VPHY(t, (id_x + 1) * (size_x / q), (id_y + 1) * (size_y / q)),
-				1, MPI_DOUBLE, id_from_xy(id_x + 1, id_y + 1), 0,
-				MPI_COMM_WORLD, NULL);
-		}
-
-
-		if (file_export)
-		{
-			export_step_blocks(t, 0);
-		}
-
-		if (t == 2)
-		{
-			dt = svdt;
-		}
-	}
-
-	free(line);
-
-	if (file_export)
-	{
-		finalize_export();
-	}
-	MPI_Barrier(MPI_COMM_WORLD);
-}
-
-void forward_blocks_async(void)
-{
-	double svdt = 0.;
-	int	t	= 0;
-
-	if (file_export)
-		create_file(size_x / q * size_y / q);
-
-	const int id_x = id % q;
-	const int id_y = id / q;
-
-	double* line = (double*)malloc(6 * (size_y / q) * sizeof(double));
-
-	MPI_Request r[8] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL,
-						MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL,
-						MPI_REQUEST_NULL, MPI_REQUEST_NULL};
-	MPI_Request s[8] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL,
-						MPI_REQUEST_NULL, MPI_REQUEST_NULL, MPI_REQUEST_NULL,
-						MPI_REQUEST_NULL, MPI_REQUEST_NULL};
-
-	for (t = 1; t < nb_steps; t++)
-	{
-		if (t == 1)
-		{
-			svdt = dt;
-			dt   = 0;
-		}
-		if (t == 2)
-		{
-			dt = svdt / 2.;
-		}
-
-		// Recouvrement par le calcul
-		// Envoie de t-1 pendant le calcul du bloc intérieur
-		if (file_export)
-			export_step_blocks(t - 1, 1);
-
-		// Travail par blocks, 1 block par processus
-
-		// (1) Calcul bloc intï¿½rieur
-		for (int j = id_y * (size_y / q) + 1; j < (id_y + 1) * (size_y / q) - 1;
-			 j++)
-			for (int i = id_x * (size_x / q) + 1;
-				 i < (id_x + 1) * (size_x / q) - 1; i++)
-				FORWARD(t, i, j);
-
-		// (2) Attente rï¿½ception bords
-		MPI_Waitall(8, r, MPI_STATUSES_IGNORE);
-
-		if (t != 1)
-		{
-			if (id_x != 0)
-				for (int j = 0; j < size_y / q; j++)
-					UPHY(t - 1, id_x * (size_x / q) - 1,
-						 id_y * (size_y / q) + j) = LINE(line, 3)[j];
-
-			if (id_x != q - 1)
-			{
-				for (int j = 0; j < size_y / q; j++)
-					HPHY(t - 1, (id_x + 1) * (size_x / q),
-						 id_y * (size_y / q) + j) = LINE(line, 4)[j];
-
-				for (int j = 0; j < size_y / q; j++)
-					VPHY(t - 1, (id_x + 1) * (size_x / q),
-						 id_y * (size_y / q) + j) = LINE(line, 5)[j];
-			}
-		}
-
-		// (3) Attente envoi anciens bords
-		MPI_Waitall(8, s, MPI_STATUSES_IGNORE);
-
-		// (4) Rï¿½ceptions suivantes
-		if (id_y != q - 1)
-			MPI_Irecv(&VPHY(t, id_x * (size_x / q), (id_y + 1) * (size_y / q)),
-					  size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y + 1), 0,
-					  MPI_COMM_WORLD, r + 0);
-
-		if (id_y != 0)
-		{
-			MPI_Irecv(&HPHY(t, id_x * (size_x / q), id_y * (size_y / q) - 1),
-					  size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y - 1), 0,
-					  MPI_COMM_WORLD, r + 1);
-			MPI_Irecv(&UPHY(t, id_x * (size_x / q), id_y * (size_y / q) - 1),
-					  size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y - 1), 0,
-					  MPI_COMM_WORLD, r + 2);
-		}
-
-		if (id_x != 0)
-			MPI_Irecv(LINE(line, 3), size_y / q, MPI_DOUBLE,
-					  id_from_xy(id_x - 1, id_y), 0, MPI_COMM_WORLD, r + 3);
-
-		if (id_x != q - 1)
-		{
-			MPI_Irecv(LINE(line, 4), size_y / q, MPI_DOUBLE,
-					  id_from_xy(id_x + 1, id_y), 0, MPI_COMM_WORLD, r + 4);
-			MPI_Irecv(LINE(line, 5), size_y / q, MPI_DOUBLE,
-					  id_from_xy(id_x + 1, id_y), 0, MPI_COMM_WORLD, r + 5);
-		}
-
-		if (id_y != 0 && id_x != 0)
-			MPI_Irecv(&UPHY(t, id_x * (size_x / q) - 1, id_y * (size_y / q)) -
-						  1,
-					  1, MPI_DOUBLE, id_from_xy(id_x - 1, id_y - 1), 0,
-					  MPI_COMM_WORLD, r + 6);
-
-		if (id_y != q - 1 && id_x != q - 1)
-			MPI_Irecv(
-				&VPHY(t, (id_x + 1) * (size_x / q), (id_y + 1) * (size_y / q)),
-				1, MPI_DOUBLE, id_from_xy(id_x + 1, id_y + 1), 0,
-				MPI_COMM_WORLD, r + 7);
-
-		// (5) Calcul de mes bords
-		for (int i = id_x * (size_x / q) + 1; i < (id_x + 1) * (size_x / q) - 1;
-			 i++)
-			FORWARD(t, i, id_y * (size_y / q));
-
-		for (int i = id_x * (size_x / q) + 1; i < (id_x + 1) * (size_x / q) - 1;
-			 i++)
-			FORWARD(t, i, (id_y + 1) * (size_y / q) - 1);
-
-		for (int j = id_y * (size_y / q) + 1; j < (id_y + 1) * (size_y / q);
-			 j++)
-			FORWARD(t, id_x * (size_x / q), j);
-
-		for (int j = id_y * (size_y / q); j < (id_y + 1) * (size_y / q) - 1;
-			 j++)
-			FORWARD(t, (id_x + 1) * (size_x / q) - 1, j);
-
-		FORWARD(t, id_x * (size_x / q), id_y * (size_y / q));
-		FORWARD(t, (id_x + 1) * (size_x / q) - 1,
-				(id_y + 1) * (size_y / q) - 1);
-
-		// (6) Envoi de mes bords calculï¿½s
-		if (id_y != q - 1)
-		{
-			MPI_Isend(
-				&HPHY(t, id_x * (size_x / q), (id_y + 1) * (size_y / q) - 1),
-				size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y + 1), 0,
-				MPI_COMM_WORLD, s + 0);
-			MPI_Isend(
-				&UPHY(t, id_x * (size_x / q), (id_y + 1) * (size_y / q) - 1),
-				size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y + 1), 0,
-				MPI_COMM_WORLD, s + 1);
-		}
-		if (id_y != 0)
-			MPI_Isend(&VPHY(t, id_x * (size_x / q), id_y * (size_y / q)),
-					  size_x / q, MPI_DOUBLE, id_from_xy(id_x, id_y - 1), 0,
-					  MPI_COMM_WORLD, s + 2);
-
-		if (id_x != 0)
-		{
-			for (int j = 0; j < size_y / q; j++)
-				LINE(line, 0)
-				[j] = HPHY(t, id_x * (size_x / q), id_y * (size_y / q) + j);
-			MPI_Isend(LINE(line, 0), size_y / q, MPI_DOUBLE,
-					  id_from_xy(id_x - 1, id_y), 0, MPI_COMM_WORLD, s + 3);
-
-			for (int j = 0; j < size_y / q; j++)
-				LINE(line, 1)
-				[j] = VPHY(t, id_x * (size_x / q), id_y * (size_y / q) + j);
-			MPI_Isend(LINE(line, 1), size_y / q, MPI_DOUBLE,
-					  id_from_xy(id_x - 1, id_y), 0, MPI_COMM_WORLD, s + 4);
-		}
-
-		if (id_x != q - 1)
-		{
-			for (int j = 0; j < size_y / q; j++)
-				LINE(line, 2)
-				[j] = UPHY(t, (id_x + 1) * (size_x / q) - 1,
-						   id_y * (size_y / q) + j);
-			MPI_Isend(LINE(line, 2), size_y / q, MPI_DOUBLE,
-					  id_from_xy(id_x + 1, id_y), 0, MPI_COMM_WORLD, s + 5);
-		}
-
-		if (id_y != 0 && id_x != 0)
-			MPI_Isend(&VPHY(t, id_x * (size_x / q), id_y * (size_y / q)), 1,
-					  MPI_DOUBLE, id_from_xy(id_x - 1, id_y - 1), 0,
-					  MPI_COMM_WORLD, s + 6);
-
-		if (id_y != q - 1 && id_x != q - 1)
-			MPI_Isend(&UPHY(t, (id_x + 1) * (size_x / q) - 1,
-							(id_y + 1) * (size_y / q)) -
-						  1,
-					  1, MPI_DOUBLE, id_from_xy(id_x + 1, id_y + 1), 0,
-					  MPI_COMM_WORLD, s + 7);
-
-		if (t == 2)
-		{
-			dt = svdt;
-		}
-	}
-
-	free(line);
-
-	if (file_export)
-	{
-		export_step_blocks(t - 1, 1);
+		export_step(t - 1); // final iteration ready to export
 		finalize_export();
 	}
 

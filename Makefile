@@ -31,6 +31,6 @@ clean:
 
 mrproper:
 	@for v in $(VERSIONS); do $(MAKE) -C $$v mrproper; done
-	rm times.csv hostfile
+	-rm times.csv hostfile
 
 .PHONY: parallel sequentiel times testSave clean mrproper

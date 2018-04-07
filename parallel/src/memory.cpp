@@ -1,32 +1,27 @@
 #include "shalw.h"
 #include <stdlib.h>
 
-int off = 0;
-
 void alloc(void)
 {
-	if (block) {
-		buffer_size = size_x * size_y;
-	}
-	else {
-		off = (1 - id*size_y/p)*size_x;
-		buffer_size = size_x * (size_y/p + 2);
-	}
+	if (block) // 2 extra columns + 2 extra lines
+		buffer_size = (size_block_x + 2) * (size_block_y + 2);
+	else // only 2 extra lines
+		buffer_size = size_block_x * (size_block_y + 2);
 
-	hFil = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
-	uFil = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
-	vFil = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
-	hPhy = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
-	uPhy = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
-	vPhy = (double*)calloc(2 * buffer_size, sizeof(double)) + off;
+	hFil = (double*)calloc(2 * buffer_size, sizeof(double));
+	uFil = (double*)calloc(2 * buffer_size, sizeof(double));
+	vFil = (double*)calloc(2 * buffer_size, sizeof(double));
+	hPhy = (double*)calloc(2 * buffer_size, sizeof(double));
+	uPhy = (double*)calloc(2 * buffer_size, sizeof(double));
+	vPhy = (double*)calloc(2 * buffer_size, sizeof(double));
 }
 
 void dealloc(void)
 {
-	free(hFil - off);
-	free(uFil - off);
-	free(vFil - off);
-	free(hPhy - off);
-	free(uPhy - off);
-	free(vPhy - off);
+	free(hFil);
+	free(uFil);
+	free(vFil);
+	free(hPhy);
+	free(uPhy);
+	free(vPhy);
 }

@@ -10,21 +10,13 @@
 
 #include <math.h>
 
-#undef DEBUG
-
-#ifdef DEBUG
-#define PRINT(X) printf(X)
-#else
-#define PRINT(X)
-#endif
-
-double *	hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
-int			size_x, size_y, nb_steps;
-double		dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
-bool		file_export;
+double *hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
+int		size_x, size_y, size, nb_steps, size_block_x, size_block_y, size_block;
+int		start_block_x, start_block_y, end_block_x, end_block_y;
+double  dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
+bool	file_export;
 std::string export_path;
-int			p, id;
-int			q;
+int			p, id, id_x, id_y, p_x, p_y;
 bool		async;
 bool		block;
 int			buffer_size;
@@ -36,12 +28,49 @@ int main(int argc, char** argv)
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
 
-	q = sqrt(p);
-
 	parse_args(argc, argv);
-	PRINT("Command line options parsed\n");
+	printf("Command line options parsed\n");
 
-	if (block && (size_x % q != 0 || size_y % q != 0))
+	if (block)
+	{
+		p_x = p_y = sqrt(p);
+		id_x	  = id % p_x;
+		id_y	  = id / p_y;
+	}
+	else // bands
+	{
+		p_x  = 1;
+		p_y  = p;
+		id_x = 0;
+		id_y = id;
+	}
+	size		  = size_x * size_y;
+	size_block_x  = size_x / p_x;
+	size_block_y  = size_y / p_y;
+	size_block	= size_block_x * size_block_y;
+	start_block_x = id_x * size_block_x;
+	start_block_y = id_y * size_block_y;
+
+	if (block)
+	{
+		end_block_x = (id_x + 1) % p_x * size_block_x;
+		end_block_y = (id_y + 1) / p_y * size_block_y;
+	}
+	else // bands
+	{
+		end_block_x = size_block_x;
+		end_block_y = (id_y + 1) * size_block_y;
+	}
+	// Theses variables doesn't take into account the extra columns / lines
+	// needed for calculations.
+	printf("id = %d, id_x = %d, id_y = %d\n", id, id_x, id_y);
+	printf("size_block_x = %d, size_block_y = %d, size_block = %d\n",
+		   size_block_x, size_block_y, size_block);
+	printf("start_block_x = %d, start_block_y = %d\n", start_block_x,
+		   start_block_y);
+	printf("end_block_x = %d, end_block_y = %d\n", end_block_x, end_block_y);
+
+	if (block && (size_x % p_x != 0 || size_y % p_y != 0))
 	{
 		printf("Dimensions of image not compatible with number of block "
 			   "workers\n");
@@ -54,31 +83,20 @@ int main(int argc, char** argv)
 	}
 
 	alloc();
-	PRINT("Memory allocated\n");
+	printf("Memory allocated\n");
 
 	gauss_init();
-	PRINT("State initialised\n");
+	printf("State initialised\n");
 
-	if (async)
-	{
-		PRINT("Asynchonous mode\n");
-		if (block)
-			forward_blocks_async();
-		else
-			forward_bands_async();
-	}
-	else
-	{
-		PRINT("Synchonous mode\n");
-		if (block)
-			forward_blocks_sync();
-		else
-			forward_bands_sync();
-	}
-	PRINT("State computed\n");
+	printf("%s mode\n", (block) ? "Blocks" : "Bands");
+	printf("%s mode\n", (async) ? "Asynchonous" : "Synchronus");
+
+	forward();
+
+	printf("State computed\n");
 
 	dealloc();
-	PRINT("Memory freed\n");
+	printf("Memory freed\n");
 
 	MPI_Finalize();
 
