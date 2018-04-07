@@ -278,26 +278,23 @@ void forward(void)
 					// Echange id-1 <=> id
 					if (id > 0)
 					{
-						MPI_Irecv(&HPHY(t - 1, 0, start_block_y - 1),
-								  size_block_x, MPI_DOUBLE, id - 1, 0,
-								  MPI_COMM_WORLD, r);
-						MPI_Irecv(&UPHY(t - 1, 0, start_block_y - 1),
-								  size_block_x, MPI_DOUBLE, id - 1, 0,
-								  MPI_COMM_WORLD, r + 1);
-						MPI_Isend(&VPHY(t - 1, 0, start_block_y), size_block_x,
-								  MPI_DOUBLE, id - 1, 0, MPI_COMM_WORLD, s + 0);
+						MPI_Irecv(&HPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+								  id - 1, 0, MPI_COMM_WORLD, r);
+						MPI_Irecv(&UPHY(t - 1, 0, 0), size_block_x, MPI_DOUBLE,
+								  id - 1, 0, MPI_COMM_WORLD, r + 1);
+						MPI_Isend(&VPHY(t - 1, 0, 1), size_block_x, MPI_DOUBLE,
+								  id - 1, 0, MPI_COMM_WORLD, s);
 					}
 					// Echange id <=> id+1
 					if (id < p - 1)
 					{
-						MPI_Isend(&HPHY(t - 1, 0, size_block_y - 1),
+						MPI_Isend(&HPHY(t - 1, 0, size_block_y), size_block_x,
+								  MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD, s + 1);
+						MPI_Isend(&UPHY(t - 1, 0, size_block_y), size_block_x,
+								  MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD, s + 2);
+						MPI_Irecv(&VPHY(t - 1, 0, size_block_y + 1),
 								  size_block_x, MPI_DOUBLE, id + 1, 0,
-								  MPI_COMM_WORLD, s + 1);
-						MPI_Isend(&UPHY(t - 1, 0, size_block_y - 1),
-								  size_block_x, MPI_DOUBLE, id + 1, 0,
-								  MPI_COMM_WORLD, s + 2);
-						MPI_Irecv(&VPHY(t - 1, 0, size_block_y), size_block_x,
-								  MPI_DOUBLE, id + 1, 0, MPI_COMM_WORLD, r + 2);
+								  MPI_COMM_WORLD, r + 2);
 					}
 				}
 			}
@@ -445,9 +442,11 @@ void forward(void)
 		{
 			start_y += 1; // no calculations for first line
 			if (block)
+			{
 				start_x += 1; // no calculations for first column
-			// by not changing end_x/y we also reduce calculations for last line
-			// and column
+				end_x -= 1;   // no calculations for last colomn
+			}
+			end_y -= 1; // no calculations for last line
 		}
 
 		// HERE ARE MOST CALCULATIONS for t
@@ -463,6 +462,7 @@ void forward(void)
 
 			// On fini les calculs des bords
 			start_x -= 1;
+			end_x += 1;
 			for (int x = start_x; x < end_x; x++)
 			{
 				FORWARD(t, x, 1);			 // first calculation line
@@ -479,6 +479,7 @@ void forward(void)
 			}
 			// No need to wait for these before calculations
 			MPI_Waitall(8, s, MPI_STATUSES_IGNORE); // Attente envoi bords
+			// All messages have been exchanged : we can start new ones
 		}
 
 		if (t == 2)

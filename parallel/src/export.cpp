@@ -35,18 +35,23 @@ void create_file(void)
 
 void export_step(int t)
 {
-	if (async)
-	{
-		MPI_Wait(&request, NULL);
-		MPI_File_iwrite(fh, (void*)&HFIL(t, (block), 1), size_block, MPI_DOUBLE,
-						&request);
-	}
-	else // sync
+	if (!block) // bands
 	{
 		MPI_Offset disp =
 			(t * size + start_block_y * size_block_x) * sizeof(double);
 		MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native",
 						  MPI_INFO_NULL);
+	}
+
+	if (async)
+	{
+		if (request)
+			MPI_Wait(&request, NULL);
+		MPI_File_iwrite(fh, (void*)&HFIL(t, (block), 1), size_block, MPI_DOUBLE,
+						&request);
+	}
+	else // sync
+	{
 		MPI_File_write(fh, (void*)&HFIL(t, (block), 1), size_block, MPI_DOUBLE,
 					   MPI_STATUS_IGNORE);
 	}
