@@ -33,10 +33,13 @@ obj/%.o: src/%.cpp
 	$(CXX) -c -o $@ $^ $(CXXFLAGS)
 
 test2: rep bin/$(TARGET)
-	$(EX) $(EXFLAGS) bin/$(TARGET) -x 8192 -y 8192 -t 20
+	$(EX) $(EXFLAGS) bin/$(TARGET) -x 8192 -y 8192 -t 20 $(MODE)
 
 test3: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ~/
+
+big_test: rep bin/$(TARGET)
+	$(EX) $(EXFLAGS) bin/$(TARGET) -x 32768 -y 32768 -t 40 $(MODE)
 
 testSave: rep bin/$(TARGET)
 	-rm ./bin/TEST_NAME.sav	

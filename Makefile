@@ -1,6 +1,8 @@
 VERSIONS:=sequentiel parallel
 NODES:=16
-ROOM:=403
+ROOM:=401
+SLOTS:=4
+TEST:=test2
 TIME:=time -f "%e %C" -ao times.csv
 
 all: sequentiel parallel
@@ -13,14 +15,15 @@ sequentiel: hostfile
 
 times: hostfile parallel
 	@echo -n "" > times.csv
-	@$(TIME) $(MAKE) NODES=$(NODES) -sC parallel test2
-	@$(TIME) $(MAKE) NODES=$(NODES) MODE=--async -sC parallel test2
-	@$(TIME) $(MAKE) NODES=$(NODES) MODE=--blocks -sC parallel test2
-	@$(TIME) $(MAKE) NODES=$(NODES) MODE="--blocks --async" -sC parallel test2
+	@$(TIME) $(MAKE) NODES=$(NODES) -C parallel $(TEST)
+	@$(TIME) $(MAKE) NODES=$(NODES) MODE=--async -C parallel $(TEST)
+	@$(TIME) $(MAKE) NODES=$(NODES) MODE=--block -C parallel $(TEST)
+	@$(TIME) $(MAKE) NODES=$(NODES) MODE="--block --async" -C parallel $(TEST)
 	@cat times.csv
 
 hostfile:
-	./make_hostfile.sh $(ROOM)
+	./make_hostfile.sh $(ROOM) $(SLOTS)
+	@cat hostfile
 
 testSave:
 	@for v in $(VERSIONS); do $(MAKE) -C $$v testSave; done
