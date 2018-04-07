@@ -41,6 +41,9 @@ test3: rep bin/$(TARGET)
 big_test: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 32768 -y 32768 -t 40 $(MODE)
 
+small_test: rep bin/$(TARGET)
+	$(EX) $(EXFLAGS) bin/$(TARGET) -x 2048 -y 2048 -t 20 $(MODE)
+
 testSave: rep bin/$(TARGET)
 	-rm ./bin/TEST_NAME.sav	
 	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) $(MODE) --export --export-path ./bin/

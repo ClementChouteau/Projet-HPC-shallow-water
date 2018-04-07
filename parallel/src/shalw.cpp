@@ -5,8 +5,9 @@
 #include "memory.h"
 #include "parse_args.hpp"
 #include <mpi.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 #include <math.h>
 
@@ -20,6 +21,7 @@ int			p, id, id_x, id_y, p_x, p_y;
 bool		async;
 bool		block;
 int			buffer_size;
+clock_t		start_time, end_time;
 
 int main(int argc, char** argv)
 {
@@ -28,9 +30,7 @@ int main(int argc, char** argv)
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
 
-	parse_args(argc, argv);
-	if (id == 0)
-		printf("Command line options parsed\n");
+	ID0("Command line options parsed\n", parse_args(argc, argv))
 
 	if (block)
 	{
@@ -79,27 +79,19 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-	alloc();
-	if (id == 0)
-		printf("Memory allocated\n");
+	ID0_TIME("Memory allocated", alloc())
 
-	gauss_init();
+	ID0_TIME("State initialised", gauss_init())
 
 	if (id == 0)
 	{
-		printf("State initialised\n");
 		printf("%s mode\n", (block) ? "Blocks" : "Bands");
 		printf("%s mode\n", (async) ? "Asynchonous" : "Synchronus");
 	}
 
-	forward();
+	ID0_TIME("State computed", forward())
 
-	if (id == 0)
-		printf("State computed\n");
-
-	dealloc();
-	if (id == 0)
-		printf("Memory freed\n");
+	ID0_TIME("Memory freed", dealloc())
 
 	MPI_Finalize();
 

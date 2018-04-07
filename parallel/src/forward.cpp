@@ -132,8 +132,9 @@ void FORWARD(int t, int i, int j)
 // de la fonction.
 void forward(void)
 {
-	double svdt = 0.;
-	int	t	= 0;
+	double svdt		 = 0.;
+	int	t		 = 0;
+	double total_msg = 0, total_calc = 0, total_export = 0;
 
 	// Special type MPI to exchange array columns
 	MPI_Datatype column;
@@ -164,12 +165,17 @@ void forward(void)
 			dt = svdt / 2.;
 
 		if (file_export)
+		{
+			clock_t start_export = clock();
 			export_step(t - 1); // t - 1 is ready to export
-								// recouvrement par le calcul en async
+			total_export += TIME(start_export, clock());
+		}
+		// recouvrement par le calcul en async
 
 		// ECHANGE DE LIGNES
 		// à l'instant t, la grille t-1 est calculée, on peut donc échanger les
 		// lignes de t - 1
+		clock_t start_msg = clock();
 		if (t > 1)
 		{
 			if (async)
@@ -423,6 +429,7 @@ void forward(void)
 				}
 			}
 		}
+		total_msg += TIME(start_msg, clock());
 
 		// CALCULATIONS PREPARATION
 		int start_x = 0;
@@ -449,18 +456,23 @@ void forward(void)
 
 		// HERE ARE MOST CALCULATIONS for t
 		// Peut facilement être parallélisé avec OpenMP
+		// if async mode, messages are exchanged at the same time
+		clock_t start_calc = clock();
 		for (int y = start_y; y < end_y; y++)
 			for (int x = start_x; x < end_x; x++)
 				FORWARD(t, x, y);
+		total_calc += TIME(start_calc, clock());
 
 		if (async) // Vérifier échange des bords t-1 avant de finir les calculs
 		{
 			// We need these receptions before finish calculations
+			// Should already be finished
 			MPI_Waitall(8, r, MPI_STATUSES_IGNORE); // Attente réception bords
 
 			// On fini les calculs des bords
 			start_x -= 1;
 			end_x += 1;
+			clock_t start_calc = clock();
 			for (int x = start_x; x < end_x; x++)
 			{
 				FORWARD(t, x, 1);			 // first calculation line
@@ -475,6 +487,7 @@ void forward(void)
 					FORWARD(t, size_block_x, y); // last calculation column
 				}
 			}
+			total_calc += TIME(start_calc, clock());
 			// No need to wait for these before calculations
 			MPI_Waitall(8, s, MPI_STATUSES_IGNORE); // Attente envoi bords
 			// All messages have been exchanged : we can start new ones
@@ -486,8 +499,17 @@ void forward(void)
 
 	if (file_export)
 	{
+		clock_t start_export = clock();
 		export_step(t - 1); // final iteration ready to export
 		finalize_export();
+		total_export += TIME(start_export, clock());
+	}
+
+	ID0_(printf("	Message exchange : %.2f\n", total_msg))
+	ID0_(printf("	Calculations : %.2f\n", total_calc))
+	if (file_export)
+	{
+		ID0_(printf("	Calculations : %.2f\n", total_export))
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
