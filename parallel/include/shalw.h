@@ -7,6 +7,7 @@ extern int	 size_x, size_y, size, nb_steps, size_block_x, size_block_y,
 extern int		   start_block_x, start_block_y, end_block_x, end_block_y;
 extern double	  dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
 extern bool		   file_export;
+extern int		   step_export;
 extern std::string export_path;
 extern int		   p, id, id_x, id_y, p_x, p_y;
 extern bool		   async;

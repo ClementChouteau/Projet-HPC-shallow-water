@@ -5,10 +5,11 @@ INCLUDE:=include
 TARGET:=shalw
 ARGS:=
 MODE:=
-NODES:=2
+NODES:=4
 HOSTFILE:=../hostfile
 SIZE_TEST:=512
 T_TEST:=40
+EXPORT_STEP:=1
 TEST_NAME:=shalw_$(SIZE_TEST)x$(SIZE_TEST)_T$(T_TEST)
 
 CXX=mpicxx
@@ -36,7 +37,7 @@ test2: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 8192 -y 8192 -t 20 $(MODE)
 
 test3: rep bin/$(TARGET)
-	$(EX) $(EXFLAGS) bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ~/
+	$(EX) $(EXFLAGS) bin/$(TARGET) -x 512 -y 512 -t 40 --export --export-path ~/ --export-step $(EXPORT_STEP)
 
 big_test: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 32768 -y 32768 -t 40 $(MODE)
@@ -45,14 +46,14 @@ small_test: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 2048 -y 2048 -t 20 $(MODE)
 
 testSave: rep bin/$(TARGET)
-	-rm ./bin/TEST_NAME.sav	
-	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) $(MODE) --export --export-path ./bin/
-	../save_last.py ./bin/TEST_NAME.sav
+	-rm ./bin/$(TEST_NAME).sav	
+	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) $(MODE) --export --export-path ./bin/ --export-step $(EXPORT_STEP)
+	../save_last.py ./bin/$(TEST_NAME).sav
 
 io: rep bin/$(TARGET)
 	-rm ./bin/$(TEST_NAME).png
 	-rm ./bin/$(TEST_NAME).sav
-	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) $(MODE) --export --export-path ./bin/
+	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) $(MODE) --export --export-path ./bin/ --export-step $(EXPORT_STEP)
 	../save_last.py bin/$(TEST_NAME).sav
 	gimp ./bin/$(TEST_NAME).png
 

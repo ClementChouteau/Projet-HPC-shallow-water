@@ -26,8 +26,11 @@ void parse_args(int argc, char** argv)
 		"hinit", po::value< double >()->default_value(15),
 		"Height of the initial state")("export", "Export state of hFil")(
 		"export-path", po::value< std::string >()->default_value("."),
-		"Path for the export")("async", "Enable asynchronous communications")(
-		"block", "Enable block mode");
+		"Path for the export")("export-step",
+							   po::value< int >()->default_value(1),
+							   "Number of steps between two images writed")(
+		"async", "Enable asynchronous communications")("block",
+													   "Enable block mode");
 
 	po::variables_map vars;
 	po::store(po::command_line_parser(argc, argv).options(desc).run(), vars);
@@ -55,6 +58,7 @@ void parse_args(int argc, char** argv)
 	if (vars.count("export"))
 		file_export = true;
 	export_path = vars["export-path"].as< std::string >();
+	step_export = vars["export-step"].as< int >();
 
 	async = vars.count("async") ? true : false;
 	block = vars.count("block") ? true : false;

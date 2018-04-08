@@ -16,6 +16,7 @@ int		size_x, size_y, size, nb_steps, size_block_x, size_block_y, size_block;
 int		start_block_x, start_block_y, end_block_x, end_block_y;
 double  dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
 bool	file_export;
+int		step_export;
 std::string export_path;
 int			p, id, id_x, id_y, p_x, p_y;
 bool		async;
@@ -86,7 +87,7 @@ int main(int argc, char** argv)
 	if (id == 0)
 	{
 		printf("%s mode\n", (block) ? "Blocks" : "Bands");
-		printf("%s mode\n", (async) ? "Asynchonous" : "Synchronus");
+		printf("%s mode\n", (async) ? "Asynchonous" : "Synchronous");
 	}
 
 	ID0_TIME("State computed", forward())

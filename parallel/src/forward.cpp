@@ -164,7 +164,7 @@ void forward(void)
 		if (t == 2)
 			dt = svdt / 2.;
 
-		if (file_export)
+		if (file_export && t % step_export == 0)
 		{
 			clock_t start_export = clock();
 			export_step(t - 1); // t - 1 is ready to export
@@ -467,7 +467,9 @@ void forward(void)
 		{
 			// We need these receptions before finish calculations
 			// Should already be finished
+			clock_t start_msg = clock();
 			MPI_Waitall(8, r, MPI_STATUSES_IGNORE); // Attente réception bords
+			total_msg += TIME(start_msg, clock());
 
 			// On fini les calculs des bords
 			start_x -= 1;
@@ -480,7 +482,6 @@ void forward(void)
 			}
 			if (block)
 			{
-				// we have already calculated y = 1 and y = size_block_y
 				for (int y = 1; y < size_block_y; y++)
 				{
 					FORWARD(t, 1, y);			 // first calculation column
@@ -488,8 +489,11 @@ void forward(void)
 				}
 			}
 			total_calc += TIME(start_calc, clock());
-			// No need to wait for these before calculations
+
+			// No need to wait before for these before calculations
+			start_msg = clock();
 			MPI_Waitall(8, s, MPI_STATUSES_IGNORE); // Attente envoi bords
+			total_msg += TIME(start_msg, clock());
 			// All messages have been exchanged : we can start new ones
 		}
 
@@ -509,7 +513,7 @@ void forward(void)
 	ID0_(printf("	Calculations : %.2f\n", total_calc))
 	if (file_export)
 	{
-		ID0_(printf("	Calculations : %.2f\n", total_export))
+		ID0_(printf("	Export : %.2f\n", total_export))
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
