@@ -1,6 +1,8 @@
 # [HPC] Projet : shallow water model
 ### Clément Chouteau & Romain Mekarni
 
+[Lien vers les slides de la présentation de la partie 1](https://docs.google.com/presentation/d/e/2PACX-1vRZ8XezVIG_b3kwiOuOKLjaWbu2-rzVPxiaX4fysg1LltETBXcvuhipI6Gbdq2Rz7dMn2T53rt2qNmH/pub?start=false&loop=false)
+
 ## Compiler
 
 - `make` : lance la compilation des différentes versions. Crée un fichier `hostfile`.
