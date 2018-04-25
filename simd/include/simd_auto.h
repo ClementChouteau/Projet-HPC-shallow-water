@@ -1,5 +1,5 @@
-#ifndef SIMD_H
-#define SIMD_H
+#ifndef SIMD_AUTO_H
+#define SIMD_AUTO_H
 
 // t > 2
 inline double hFil_forward_simd_auto(int t, int i, int j)
@@ -77,4 +77,4 @@ inline void FORWARD_simd_auto(int t, int i, int j)
 	VFIL(t, i, j) = vi;
 }
 
-#endif // SIMD_H
+#endif // SIMD_AUTO_H

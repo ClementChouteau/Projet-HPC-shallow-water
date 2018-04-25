@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "simd_auto.h"
+#include "simd_avx2.h"
 
 double hFil_forward(int t, int i, int j)
 {
@@ -161,13 +162,16 @@ void forward(void)
 			for (int j = 1; j < size_y-1; j++)
 			{
 				FORWARD(t, 0, j);
-
-				int i;
-				for (i = 1; i < size_x-1; i++) {
+				for (int i = 1; i < size_x-1; i++) {
 					FORWARD_simd_auto(t, i, j);
 				}
-
 				FORWARD(t, size_x-1, j);
+
+//				FORWARD(t, size_x-1, j);
+				//				int i;
+				//				for (i = 4; i+4-1 < size_x-1; i+=4) {
+				//					FORWARD_simd_avx2(t, i, j);
+				//				}
 			}
 
 			// dernière ligne

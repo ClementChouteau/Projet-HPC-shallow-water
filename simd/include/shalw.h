@@ -1,5 +1,11 @@
 #include <string>
-extern double *__restrict__	hFil, *__restrict__ uFil, *__restrict__ vFil, *__restrict__ hPhy, *__restrict__ uPhy, *__restrict__ vPhy;
+extern double *__restrict__	hFil __attribute__ ((aligned (32)));
+extern double *__restrict__ uFil __attribute__ ((aligned (32)));
+extern double *__restrict__ vFil __attribute__ ((aligned (32)));
+extern double *__restrict__ hPhy __attribute__ ((aligned (32)));
+extern double *__restrict__ uPhy __attribute__ ((aligned (32)));
+extern double *__restrict__ vPhy __attribute__ ((aligned (32)));
+
 extern int		   size_x, size_y, nb_steps;
 extern double	  dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
 extern bool		   file_export;

@@ -6,7 +6,13 @@
 #include "forward.h"
 #include "export.h"
 
-double *__restrict__ hFil, *__restrict__ uFil, *__restrict__ vFil, *__restrict__ hPhy, *__restrict__ uPhy, *__restrict__ vPhy;
+double *__restrict__ hFil __attribute__ ((aligned (32)));
+double *__restrict__ uFil __attribute__ ((aligned (32)));
+double *__restrict__ vFil __attribute__ ((aligned (32)));
+double *__restrict__ hPhy __attribute__ ((aligned (32)));
+double *__restrict__ uPhy __attribute__ ((aligned (32)));
+double *__restrict__ vPhy __attribute__ ((aligned (32)));
+
 int size_x, size_y, nb_steps;
 double dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
 bool file_export;
