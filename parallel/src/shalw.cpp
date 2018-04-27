@@ -1,15 +1,16 @@
-#include "shalw.h"
+#include <math.h>
+#include <mpi.h>
+#include <omp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
 #include "export.h"
 #include "forward.h"
 #include "init.h"
 #include "memory.h"
 #include "parse_args.hpp"
-#include <mpi.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-
-#include <math.h>
+#include "shalw.h"
 
 double *hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
 int		size_x, size_y, size, nb_steps, size_block_x, size_block_y, size_block;
@@ -25,11 +26,15 @@ clock_t		start_time, end_time;
 
 int main(int argc, char** argv)
 {
+	double start = 0;
 	parse_args(argc, argv);
 
 	int mode;
 	if (hybride)
+	{
+		start = omp_get_wtime();
 		MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mode);
+	}
 	else
 		MPI_Init(&argc, &argv);
 
@@ -97,6 +102,9 @@ int main(int argc, char** argv)
 	ID0_TIME("State computed", forward())
 
 	ID0_TIME("Memory freed", dealloc())
+
+	if (hybride && id == 0)
+		printf("Elapsed wall clock time : %.2f\n", omp_get_wtime() - start);
 
 	MPI_Finalize();
 
