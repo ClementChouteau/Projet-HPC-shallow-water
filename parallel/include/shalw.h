@@ -10,8 +10,7 @@ extern bool		   file_export;
 extern int		   step_export;
 extern std::string export_path;
 extern int		   p, id, id_x, id_y, p_x, p_y;
-extern bool		   async;
-extern bool		   block;
+extern bool		   async, block, hybride;
 extern int		   buffer_size;
 extern clock_t	 start_time, end_time;
 

@@ -13,8 +13,8 @@ EXPORT_STEP:=1
 TEST_NAME:=shalw_$(SIZE_TEST)x$(SIZE_TEST)_T$(T_TEST)
 
 CXX=mpicxx
-CXXFLAGS=-Wall -Werror -Wextra -O3 -I $(INCLUDE)
-LDFLAGS=-lboost_program_options -lm
+CXXFLAGS=-Wall -Werror -Wextra -O3 -I $(INCLUDE) -fopenmp
+LDFLAGS=-lboost_program_options -lm -fopenmp
 EX=mpirun
 EXFLAGS=-n $(NODES) -hostfile $(HOSTFILE) --map-by node
 
@@ -56,6 +56,9 @@ io: rep bin/$(TARGET)
 	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) $(MODE) --export --export-path ./bin/ --export-step $(EXPORT_STEP)
 	../save_last.py bin/$(TEST_NAME).sav
 	gimp ./bin/$(TEST_NAME).png
+
+test_hybride: rep bin/$(TARGET)
+	$(EX) $(EXFLAGS) bin/$(TARGET) -x 2048 -y 2048 -t 20 --async --block --hybride
 
 clean:
 	rm -f obj/*.o

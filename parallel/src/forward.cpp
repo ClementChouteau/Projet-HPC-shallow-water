@@ -458,9 +458,17 @@ void forward(void)
 		// Peut facilement être parallélisé avec OpenMP
 		// if async mode, messages are exchanged at the same time
 		clock_t start_calc = clock();
-		for (int y = start_y; y < end_y; y++)
-			for (int x = start_x; x < end_x; x++)
-				FORWARD(t, x, y);
+		if (hybride)
+		{
+#pragma omp parallel for
+			for (int y = start_y; y < end_y; y++)
+				for (int x = start_x; x < end_x; x++)
+					FORWARD(t, x, y);
+		}
+		else
+			for (int y = start_y; y < end_y; y++)
+				for (int x = start_x; x < end_x; x++)
+					FORWARD(t, x, y);
 		total_calc += TIME(start_calc, clock());
 
 		if (async) // Vérifier échange des bords t-1 avant de finir les calculs

@@ -19,19 +19,23 @@ bool	file_export;
 int		step_export;
 std::string export_path;
 int			p, id, id_x, id_y, p_x, p_y;
-bool		async;
-bool		block;
+bool		async, block, hybride;
 int			buffer_size;
 clock_t		start_time, end_time;
 
 int main(int argc, char** argv)
 {
-	MPI_Init(&argc, &argv);
+	parse_args(argc, argv);
+
+	int mode;
+	if (hybride)
+		MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mode);
+	else
+		MPI_Init(&argc, &argv);
 
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
 
-	ID0("Command line options parsed\n", parse_args(argc, argv))
 
 	if (block)
 	{

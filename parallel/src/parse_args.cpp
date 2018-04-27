@@ -29,8 +29,9 @@ void parse_args(int argc, char** argv)
 		"Path for the export")("export-step",
 							   po::value< int >()->default_value(1),
 							   "Number of steps between two images writed")(
-		"async", "Enable asynchronous communications")("block",
-													   "Enable block mode");
+		"async", "Enable asynchronous communications")(
+		"block", "Enable block mode")("hybride",
+									  "Enable multithreading hybride support");
 
 	po::variables_map vars;
 	po::store(po::command_line_parser(argc, argv).options(desc).run(), vars);
@@ -60,6 +61,7 @@ void parse_args(int argc, char** argv)
 	export_path = vars["export-path"].as< std::string >();
 	step_export = vars["export-step"].as< int >();
 
-	async = vars.count("async") ? true : false;
-	block = vars.count("block") ? true : false;
+	async   = vars.count("async");
+	block   = vars.count("block");
+	hybride = vars.count("hybride");
 }
