@@ -3,6 +3,9 @@
 #include <math.h>
 #include <stdio.h>
 
+#include <chrono>
+#include <iostream>
+
 #include "simd_auto.h"
 #include "simd_avx2.h"
 
@@ -129,6 +132,8 @@ void forward(void)
 	double svdt = 0.;
 	int	t	= 0;
 
+	double temps = 0;
+	
 	if (file_export)
 	{
 		file = create_file();
@@ -162,16 +167,12 @@ void forward(void)
 			for (int j = 1; j < size_y-1; j++)
 			{
 				FORWARD(t, 0, j);
+				auto start = std::chrono::steady_clock::now();
 				for (int i = 1; i < size_x-1; i++) {
 					FORWARD_simd_auto(t, i, j);
 				}
+				temps += dt = std::chrono::duration <double, std::ratio<1>> (std::chrono::steady_clock::now() - start).count();
 				FORWARD(t, size_x-1, j);
-
-//				FORWARD(t, size_x-1, j);
-				//				int i;
-				//				for (i = 4; i+4-1 < size_x-1; i+=4) {
-				//					FORWARD_simd_avx2(t, i, j);
-				//				}
 			}
 
 			// dernière ligne
@@ -194,4 +195,6 @@ void forward(void)
 	{
 		finalize_export(file);
 	}
+	
+	std::cout << temps << std::endl;
 }
