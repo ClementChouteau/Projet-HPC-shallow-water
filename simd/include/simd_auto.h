@@ -52,7 +52,6 @@ inline double vPhy_forward_simd_auto(int t, int i, int j)
 
 inline void FORWARD_simd_auto(int t, int i, int j)
 {
-	// seul : 16.6109 (nvect), 13.2316 (vect)
 	const double uy = uPhy_forward_simd_auto(t, i, j);
 	const double vy = vPhy_forward_simd_auto(t, i, j);
 	const double hy = hPhy_forward_simd_auto(t, i, j);
@@ -61,7 +60,6 @@ inline void FORWARD_simd_auto(int t, int i, int j)
 	VPHY(t, i, j) = vy;
 	HPHY(t, i, j) = hy;
 
-	// seul: 16.1355 (nvect), 16.7608 (vect)
 	const double ui = uFil_forward_simd_auto(t, i, j);
 	const double vi = vFil_forward_simd_auto(t, i, j);
 	const double hi = hFil_forward_simd_auto(t, i, j);
