@@ -3,10 +3,10 @@
 
 void gauss_init(void)
 {
-	double gmx = size_x * dx / 2;
-	double gmy = size_y * dy / 2;
-	double gsx = 25000;
-	double gsy = 25000;
+	const double gmx = size_x * dx / 2;
+	const double gmy = size_y * dy / 2;
+	const double gsx = 25000;
+	const double gsy = 25000;
 
 	int start_x = start_block_x;
 	int start_y = start_block_y - 1; // one extra line en top
@@ -19,15 +19,11 @@ void gauss_init(void)
 		end_x += 1;   // one extra column on right
 	}
 
-	for (int x = start_x; x < end_x; x++)
+	for (int y = std::max(0, start_y); y < std::min(size_y, end_y); y++)
+	for (int x = std::max(0, start_x); x < std::min(size_x, end_x); x++)
 	{
-		for (int y = start_y; y < end_y; y++)
-		{
-			if (x < 0 || y < 0 || x > size_x || y > size_y)
-				continue;
-			HFIL(0, x - start_x, y - start_y) =
-				height * (exp(-pow((x * dx - gmx) / gsx, 2) / 2.)) *
-				(exp(-pow((y * dy - gmy) / gsy, 2) / 2.));
-		}
+		HFIL(0, x - start_x, y - start_y) =
+			height * (exp(-pow((x * dx - gmx) / gsx, 2) / 2.)) *
+			(exp(-pow((y * dy - gmy) / gsy, 2) / 2.));
 	}
 }

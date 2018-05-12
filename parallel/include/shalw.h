@@ -1,7 +1,13 @@
 #include <string>
 #include <time.h>
 
-extern double *hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
+extern double *__restrict__	hFil;
+extern double *__restrict__ uFil;
+extern double *__restrict__ vFil;
+extern double *__restrict__ hPhy;
+extern double *__restrict__ uPhy;
+extern double *__restrict__ vPhy;
+
 extern int	 size_x, size_y, size, nb_steps, size_block_x, size_block_y,
 	size_block;
 extern int		   start_block_x, start_block_y, end_block_x, end_block_y;

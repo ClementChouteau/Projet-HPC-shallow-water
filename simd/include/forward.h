@@ -1,1 +1,0 @@
-void forward(void);

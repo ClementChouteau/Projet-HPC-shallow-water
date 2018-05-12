@@ -30,8 +30,8 @@ void parse_args(int argc, char** argv)
 							   po::value< int >()->default_value(1),
 							   "Number of steps between two images writed")(
 		"async", "Enable asynchronous communications")(
-		"block", "Enable block mode")("hybride",
-									  "Enable multithreading hybride support");
+		"block", "Enable block mode")(
+		"hybride", "Enable multithreading hybride support");
 
 	po::variables_map vars;
 	po::store(po::command_line_parser(argc, argv).options(desc).run(), vars);

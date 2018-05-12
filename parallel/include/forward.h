@@ -1,7 +1,8 @@
 #ifndef FORWARD_H
 #define FORWARD_H
 
-#define ID(x, y) ((y)*p_x + (x))
+#include "forward_util.h"
+#include "forward_util_simd.h"
 
 void forward(void);
 

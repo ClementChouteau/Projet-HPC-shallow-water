@@ -13,8 +13,8 @@ EXPORT_STEP:=1
 TEST_NAME:=shalw_$(SIZE_TEST)x$(SIZE_TEST)_T$(T_TEST)
 
 CXX=mpicxx
-CXXFLAGS=-Wall -Werror -Wextra -O3 -I $(INCLUDE) -fopenmp
-LDFLAGS=-lboost_program_options -lm -fopenmp
+CXXFLAGS=-Wall -Wextra -O3 -fopenmp -march=native -I $(INCLUDE)
+LDFLAGS=-lboost_program_options -lm -fopenmp -march=native
 EX=mpirun
 EXFLAGS=-n $(NODES) -hostfile $(HOSTFILE) --map-by node
 
@@ -46,7 +46,7 @@ small_test: rep bin/$(TARGET)
 	$(EX) $(EXFLAGS) bin/$(TARGET) -x 2048 -y 2048 -t 20 $(MODE)
 
 testSave: rep bin/$(TARGET)
-	-rm ./bin/$(TEST_NAME).sav	
+	-rm ./bin/$(TEST_NAME).sav
 	$(EX) -n 4 -hostfile $(HOSTFILE) --map-by node bin/$(TARGET) -x $(SIZE_TEST) -y $(SIZE_TEST) -t $(T_TEST) $(MODE) --export --export-path ./bin/ --export-step $(EXPORT_STEP)
 	../save_last.py ./bin/$(TEST_NAME).sav
 

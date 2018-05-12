@@ -12,7 +12,13 @@
 #include "parse_args.hpp"
 #include "shalw.h"
 
-double *hFil, *uFil, *vFil, *hPhy, *uPhy, *vPhy;
+double *__restrict__ hFil;
+double *__restrict__ uFil;
+double *__restrict__ vFil;
+double *__restrict__ hPhy;
+double *__restrict__ uPhy;
+double *__restrict__ vPhy;
+
 int		size_x, size_y, size, nb_steps, size_block_x, size_block_y, size_block;
 int		start_block_x, start_block_y, end_block_x, end_block_y;
 double  dx, dy, dt, pcor, grav, dissip, hmoy, alpha, height, epsilon;
@@ -26,13 +32,11 @@ clock_t		start_time, end_time;
 
 int main(int argc, char** argv)
 {
-	double start = 0;
 	parse_args(argc, argv);
 
 	int mode;
 	if (hybride)
 	{
-		start = omp_get_wtime();
 		MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mode);
 	}
 	else
@@ -40,7 +44,6 @@ int main(int argc, char** argv)
 
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
-
 
 	if (block)
 	{
@@ -102,9 +105,6 @@ int main(int argc, char** argv)
 	ID0_TIME("State computed", forward())
 
 	ID0_TIME("Memory freed", dealloc())
-
-	if (hybride && id == 0)
-		printf("Elapsed wall clock time : %.2f\n", omp_get_wtime() - start);
 
 	MPI_Finalize();
 
