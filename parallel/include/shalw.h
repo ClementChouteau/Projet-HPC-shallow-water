@@ -1,3 +1,6 @@
+#ifndef SHALW_H
+#define SHALW_H
+
 #include <string>
 #include <time.h>
 
@@ -66,3 +69,5 @@ extern clock_t	 start_time, end_time;
 	uPhy[(i) + (j) * (size_block_x + (block)*2) + ((t) % 2) * buffer_size]
 #define VPHY(t, i, j) \
 	vPhy[(i) + (j) * (size_block_x + (block)*2) + ((t) % 2) * buffer_size]
+
+#endif // SHALW_H

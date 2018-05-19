@@ -13,7 +13,7 @@ EXPORT_STEP:=1
 TEST_NAME:=shalw_$(SIZE_TEST)x$(SIZE_TEST)_T$(T_TEST)
 
 CXX=mpicxx
-CXXFLAGS=-Wall -Wextra -O3 -fopenmp -march=native -I $(INCLUDE)
+CXXFLAGS=-Wall -Wextra -O3 -fopenmp -march=native -I  $(INCLUDE)
 LDFLAGS=-lboost_program_options -lm -fopenmp -march=native
 EX=mpirun
 EXFLAGS=-n $(NODES) -hostfile $(HOSTFILE) --map-by node

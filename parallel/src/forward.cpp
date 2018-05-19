@@ -6,6 +6,8 @@
 #include "export.h"
 #include "forward.h"
 #include "shalw.h"
+#include "forward_util.h"
+#include "forward_util_simd.h"
 
 #define ID(x, y) ((y)*p_x + (x))
 
@@ -358,19 +360,19 @@ void forward(void)
 		}
 		else {
 			// première ligne (calcul non simd)
-			if (start_y > 0)
-				for (int x = 0; x < size_x; x++)
-					FORWARD(t, x, 0);
+			for (int x = start_x; x < end_x; x++)
+				FORWARD(t, x, start_y);
 
 			// rectangle intérieur
 			if (hybride)
 			{
 				#pragma omp parallel for
-				for (int y = ((start_y==0) ? 1 : 0) + start_y; y < end_y; y++)
+				for (int y = start_y+1; y < end_y-1; y++)
 				{
 					// première colonne (calcul non simd)
 					FORWARD(t, start_x, y);
 
+					#pragma GCC ivdep
 					for (int x = start_x+1; x < end_x-1; x++)
 						FORWARD_simd_auto(t, x, y);
 
@@ -379,12 +381,13 @@ void forward(void)
 				}
 			}
 			else
-				for (int y = ((start_y==0) ? 1 : 0) + start_y; y < end_y; y++)
+				for (int y = start_y+1; y < end_y-1; y++)
 				{
 					// première colonne (calcul non simd)
 					FORWARD(t, start_x, y);
 
-					for (int x = start_x; x < end_x; x++)
+					#pragma GCC ivdep
+					for (int x = start_x+1; x < end_x-1; x++)
 						FORWARD_simd_auto(t, x, y);
 
 					// dernière colonne (calcul non simd)
@@ -392,9 +395,8 @@ void forward(void)
 				}
 
 			// dernière ligne (calcul non simd)
-			if (end_y == 0)
-				for (int x = 0; x < size_x; x++)
-					FORWARD(t, x, 0);
+			for (int x = start_x; x < end_x; x++)
+				FORWARD(t, x, end_y-1);
 		}
 
 
